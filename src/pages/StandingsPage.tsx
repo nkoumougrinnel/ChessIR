@@ -80,6 +80,7 @@ export default function StandingsPage() {
 }
 
 function Table({ rows, myId }: { rows: StandingRow[]; myId?: string }) {
+  const { avatarOf } = useChampionship()
   const leaderPoints = useMemo(() => rows[0]?.points ?? 0, [rows])
   return (
     <div className="card overflow-hidden">
@@ -108,7 +109,7 @@ function Table({ rows, myId }: { rows: StandingRow[]; myId?: string }) {
                   {r.rank}
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="hidden min-[400px]:block"><Avatar name={r.display_name} color={r.avatar_color} size={26} /></span>
+                  <span className="hidden min-[400px]:block"><Avatar name={r.display_name} color={r.avatar_color} size={26} src={avatarOf(r.profile_id)} /></span>
                   <span className={cx('truncate font-medium', r.participant_status === 'suspended' && 'text-faint line-through')}>
                     {r.display_name}
                   </span>

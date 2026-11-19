@@ -30,6 +30,7 @@ import {
   STATUS_LONG,
   type Outcome,
 } from '../lib/format'
+import { ChesscomMatchBlock, DeclarationMismatch } from '../components/chesscom'
 import { Avatar, EmptyState, ErrorBox, PageHeader, PageLoader, PieceColor, Spinner, StatusBadge, cx, useToast } from '../components/ui'
 
 const OPTIONS: Array<{ value: Outcome; title: string; sub: string; icon: typeof Trophy; style: string }> = [
@@ -162,10 +163,13 @@ export default function MatchDetailPage() {
 
         <ErrorBox>{error}</ErrorBox>
 
+        {/* Partie Chess.com : détection, proposition, partie liée */}
+        <ChesscomMatchBlock match={match} myColor={myColor} weekOpen={weekOpen} />
+
         {/* Déclaration */}
         {myColor && match.status === 'scheduled' && weekOpen && (
           <section className="space-y-2.5 animate-rise">
-            <h2 className="section-title text-ink">Résultat de la partie</h2>
+            <h2 className="section-title text-ink">Déclarer le résultat</h2>
             {OPTIONS.map((o) => (
               <button
                 key={o.value}
@@ -230,7 +234,11 @@ export default function MatchDetailPage() {
           <div className="card space-y-3 border-violet/50 px-4 py-4 animate-rise">
             <p className="text-[15px]">
               {opponent?.display_name} a déclaré : <strong>{resultText(match.declared_result!)}</strong>
+              {match.declaration_source === 'chesscom' && (
+                <span className="ml-1 text-[12px] text-win">(d'après la partie Chess.com)</span>
+              )}
             </p>
+            <DeclarationMismatch match={match} />
             {!contesting ? (
               <div className="grid grid-cols-2 gap-3">
                 <button className="btn-danger text-[16px]" disabled={busy} onClick={() => setContesting(true)}>
@@ -311,7 +319,7 @@ export default function MatchDetailPage() {
               {log.map((l) => (
                 <li key={l.id} className="px-4 py-2.5 text-[13px]">
                   <span className="text-ink">{logLabel(l, (pid) => pidName(pid))}</span>
-                  {l.comment && <span className="block text-muted">« {l.comment} »</span>}
+                  {l.comment && l.action !== 'link_game' && <span className="block text-muted">« {l.comment} »</span>}
                   <span className="block text-[11px] text-faint">{relativeTime(l.created_at)}</span>
                 </li>
               ))}
@@ -345,16 +353,22 @@ function logLabel(l: MatchLog, who: (id: string | null) => string) {
       return 'Déclaré non joué'
     case 'admin_reset':
       return l.comment?.startsWith('Déclaration retirée') ? `${who(l.actor_id)} retire sa déclaration` : 'Remis « à jouer »'
+    case 'detect':
+      return 'Partie détectée sur Chess.com'
+    case 'link_game':
+      return l.comment?.startsWith('Résultat repris') ? 'Partie Chess.com associée à la déclaration' : 'Partie Chess.com liée par l’administrateur'
+    case 'unlink_game':
+      return 'Partie Chess.com déliée par l’administrateur'
   }
 }
 
 function PlayerSide({ participantId, color, isMe }: { participantId: string; color: 'white' | 'black'; isMe: boolean }) {
-  const { profileOf } = useChampionship()
+  const { profileOf, avatarOf } = useChampionship()
   const p = profileOf(participantId)
   return (
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Link to={`/joueurs/${participantId}`} className="flex min-w-0 max-w-full flex-col items-center gap-2">
-        <Avatar name={p?.display_name ?? '?'} color={p?.avatar_color} size={64} ring={isMe} />
+        <Avatar name={p?.display_name ?? '?'} color={p?.avatar_color} size={64} ring={isMe} src={avatarOf(p?.id)} />
         <span className="max-w-full truncate font-display text-[18px] font-semibold">{isMe ? 'Vous' : p?.display_name}</span>
       </Link>
       <PieceColor color={color} label />

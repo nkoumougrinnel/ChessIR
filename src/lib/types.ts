@@ -10,6 +10,7 @@ export interface Profile {
   chesscom_username: string | null
   declared_elo: number | null
   avatar_color: AvatarColor
+  use_chesscom_avatar: boolean
   role: 'participant' | 'admin'
   is_active: boolean
   created_at: string
@@ -20,6 +21,9 @@ export interface Tournament {
   name: string
   status: 'draft' | 'active' | 'finished'
   bye_points: 0 | 1 | 3
+  chesscom_time_classes: TimeClass[]
+  chesscom_rated_only: boolean
+  timezone: string
   created_at: string
   started_at: string | null
   finished_at: string | null
@@ -65,6 +69,9 @@ export interface Match {
   declared_by: string | null
   declared_at: string | null
   validated_at: string | null
+  chesscom_game_id: string | null
+  declaration_source: 'manual' | 'chesscom' | null
+  chesscom_checked_at: string | null
 }
 
 export interface Bye {
@@ -77,7 +84,7 @@ export interface Bye {
 export interface MatchLog {
   id: string
   match_id: string
-  action: 'declare' | 'confirm' | 'contest' | 'admin_set' | 'admin_unplayed' | 'admin_reset'
+  action: 'declare' | 'confirm' | 'contest' | 'admin_set' | 'admin_unplayed' | 'admin_reset' | 'detect' | 'link_game' | 'unlink_game'
   result: MatchResult | null
   actor_id: string | null
   comment: string | null
@@ -165,4 +172,56 @@ export interface PlayerAchievement {
   awarded_by: string | null
   note: string | null
   created_at: string
+}
+
+/* ----------------------------- Chess.com ----------------------------- */
+
+export type TimeClass = 'rapid' | 'blitz' | 'bullet' | 'daily'
+
+export interface CadenceRating {
+  current: number | null
+  best: number | null
+  win: number
+  loss: number
+  draw: number
+}
+
+/** Données publiques Chess.com — jamais utilisées pour les points ni le classement. */
+export interface ChesscomProfile {
+  profile_id: string
+  username: string
+  player_id: number | null
+  avatar_url: string | null
+  url: string | null
+  status: 'verified' | 'not_found' | 'error'
+  ratings: Partial<Record<TimeClass, CadenceRating>>
+  joined_at: string | null
+  last_online: string | null
+  fetched_at: string
+  last_error: string | null
+}
+
+export interface ChesscomGame {
+  id: string
+  tournament_id: string
+  match_id: string
+  game_url: string
+  end_time: string
+  time_class: string
+  time_control: string | null
+  rated: boolean | null
+  white_username: string
+  black_username: string
+  white_rating: number | null
+  black_rating: number | null
+  white_result: string
+  black_result: string
+  result_for_match: MatchResult | null
+  colors_match: boolean
+  time_class_ok: boolean
+  confidence: 'certain' | 'uncertain'
+  uncertainty_reason: string | null
+  eco: string | null
+  accuracies: { white?: number; black?: number } | null
+  detected_at: string
 }

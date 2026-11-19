@@ -78,11 +78,11 @@ describe('sécurité (RLS)', () => {
     expect(data!.role).toBe('participant')
   })
 
-  it("un participant peut modifier son pseudo mais pas le profil d'un autre", async () => {
-    await players[0].client.from('profiles').update({ chesscom_username: 'ateba_new' }).eq('id', players[0].id)
+  it("un participant peut modifier son nom mais pas le profil d'un autre", async () => {
+    await players[0].client.from('profiles').update({ display_name: 'Ateba bis' }).eq('id', players[0].id)
     await players[0].client.from('profiles').update({ display_name: 'Pirate' }).eq('id', players[1].id)
-    const { data } = await service.from('profiles').select('id, display_name, chesscom_username').in('id', [players[0].id, players[1].id])
-    expect(data!.find((p) => p.id === players[0].id)!.chesscom_username).toBe('ateba_new')
+    const { data } = await service.from('profiles').select('id, display_name').in('id', [players[0].id, players[1].id])
+    expect(data!.find((p) => p.id === players[0].id)!.display_name).toBe('Ateba bis')
     expect(data!.find((p) => p.id === players[1].id)!.display_name).toBe('Bachirou')
   })
 

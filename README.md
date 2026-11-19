@@ -3,14 +3,18 @@
 **Jouer. Progresser. Grimper.** — Application web mobile de gestion du championnat d'échecs de la classe.
 Les parties se jouent sur Chess.com ; Chess IR gère les participants, le tirage hebdomadaire (système
 suisse adapté), la déclaration et la validation des résultats, le classement, les statistiques et les
-récompenses.
+récompenses. Une intégration en lecture seule avec l'API publique de Chess.com vérifie les pseudos,
+synchronise profils et Elo, et retrouve les parties jouées pour **proposer** leur résultat.
+
+Spécifications : [`docs/cahier-des-charges.md`](docs/cahier-des-charges.md) (v1.1) et
+[`docs/analyse-integration-chesscom.md`](docs/analyse-integration-chesscom.md).
 
 ## Stack
 
 | Couche | Outils |
 |---|---|
 | Front | React 18, TypeScript, Vite, Tailwind CSS 4, Lucide, React Router |
-| Back | Supabase : PostgreSQL, Auth, Realtime, Row Level Security, fonctions SQL `security definer` |
+| Back | Supabase : PostgreSQL, Auth, Realtime, Row Level Security, fonctions SQL `security definer`, 1 Edge Function (Chess.com) |
 | Tests | Vitest (unitaires + intégration sur Supabase local) |
 | Hébergement | Vercel (front statique) + Supabase |
 
@@ -30,6 +34,10 @@ supabase/migrations/
   …_schema.sql        Tables, contraintes, index, vues de classement, triggers
   …_functions.sql     Opérations sensibles (tirage, résultats, arbitrage, clôture, distinctions)
   …_rls.sql           Politiques RLS et droits
+  …_chesscom.sql      Intégration Chess.com (tables séparées, acceptation, liaison, verrous)
+supabase/functions/
+  _shared/chesscom.ts     Règles de correspondance (pures, testées)
+  chesscom-sync/index.ts  Edge Function : seul composant qui appelle l'API Chess.com
 scripts/seed-demo.ts  Données de démonstration (local uniquement)
 tests/                Tests unitaires (tests/*.test.ts) et d'intégration (tests/db)
 ```
@@ -82,6 +90,22 @@ tests/                Tests unitaires (tests/*.test.ts) et d'intégration (tests
   - badges : Premier pas, Première victoire, Semaine complète, Cinq victoires, Trois d'affilée, Tombeur
     du leader, Première remontée. Plusieurs valorisent la participation plutôt que le niveau.
 
+## Intégration Chess.com
+
+- **Lecture seule**, via l'API publique (PubAPI). Chess.com reste la seule plateforme de jeu.
+- **Pseudo vérifié** à la saisie (refusé s'il n'existe pas), **figé pendant un championnat en cours** (seul
+  l'admin peut le changer, chaque changement est tracé).
+- **Profil synchronisé** (au plus 1×/24 h) : avatar, classements par cadence, bilan global, affichés dans un
+  bloc séparé « Sur Chess.com — hors championnat ». **L'Elo est synchronisé depuis Chess.com** dans la
+  cadence principale du championnat (*rapid* par défaut), y compris l'Elo initial du participant.
+- **Détection** : à l'ouverture d'un match, via « Rechercher » (1×/2 min par match) ou « Synchroniser la
+  semaine » (admin). Une partie est *certaine* seulement si elle est unique dans la semaine, de la bonne
+  cadence et avec les couleurs du tirage ; sinon *incertaine* (les joueurs choisissent, ou l'admin tranche).
+- **Validation humaine obligatoire** : accepter une proposition = déclarer ; l'adversaire confirme ou
+  conteste. Jamais de validation automatique, même à la clôture.
+- **Jamais d'effet sur le classement** : les vues de classement ne lisent aucune table Chess.com (testé).
+- Si Chess.com est indisponible ou en retard, la déclaration manuelle reste toujours possible.
+
 ## Installation locale
 
 Prérequis : Node 20+, Docker (pour Supabase local).
@@ -95,6 +119,9 @@ npm run seed:demo             # (optionnel) données de démonstration
 npm run dev                   # http://localhost:5173
 ```
 
+Les données Chess.com de la démo sont **fictives** (aucun appel à l'API) : une partie « détectée » attend
+joueur01 sur l'un de ses matchs de la semaine.
+
 Comptes de démonstration (après `seed:demo`) : `admin@demo.chessir` et `joueur01@demo.chessir` …
 `joueur12@demo.chessir`, mot de passe `chessir-demo`.
 
@@ -103,9 +130,9 @@ Pour repartir de zéro : `npx supabase db reset`.
 ## Tests
 
 ```bash
-npm test          # unitaires : appariement, barème, classement
+npm test          # unitaires : appariement, barème, classement, correspondance Chess.com
 npm run test:db   # intégration : RLS, tirage, déclaration/validation, contestation, arbitrage,
-                  # concurrence, clôture, recalcul du classement
+                  # concurrence, clôture, recalcul du classement, intégration Chess.com
 ```
 
 ⚠️ `test:db` supprime les championnats de la base **locale** : relancez `npm run seed:demo` ensuite si
@@ -131,7 +158,18 @@ besoin.
 
 **Ne pas lancer `seed:demo` en production** (le script refuse d'ailleurs une URL non locale sans `--force`).
 
-### 2. Vercel
+### 2. Edge Function Chess.com
+
+```bash
+npx supabase functions deploy chesscom-sync
+npx supabase secrets set CHESSCOM_CONTACT="contact du club ou de l'admin"   # inclus dans le User-Agent
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` sont fournies automatiquement.
+Optionnel : planifier `sync-week` (par ex. toutes les 30 min pendant une semaine active) avec `pg_cron` +
+`pg_net`. Le bouton admin « Synchroniser la semaine » suffit sinon.
+
+### 3. Vercel
 
 1. Importer le dépôt dans Vercel (framework : Vite, build `npm run build`, sortie `dist`).
 2. Variables d'environnement : `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` (clé *anon/publishable*,

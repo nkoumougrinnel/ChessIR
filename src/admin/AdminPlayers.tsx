@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, Pencil, Plus, Search, UserCheck, UserMinus, X } from 'lucide-react'
+import { BadgeCheck, BarChart3, Pencil, Plus, RefreshCw, Search, UserCheck, UserMinus, X, XCircle } from 'lucide-react'
 import { useChampionship } from '../state/championship'
-import { admin } from '../lib/api'
+import { admin, chesscom } from '../lib/api'
 import type { Participant, Profile } from '../lib/types'
 import { Avatar, ErrorBox, PageLoader, Spinner, cx } from '../components/ui'
 import { friendlyError } from '../lib/supabase'
 
 export default function AdminPlayers() {
-  const { loading, tournament, profiles, participants, standings, reload } = useChampionship()
+  const { loading, tournament, profiles, participants, standings, reload, avatarOf, chesscomProfiles } = useChampionship()
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Profile | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -57,7 +57,7 @@ export default function AdminPlayers() {
           const st = part && standings.find((s) => s.participant_id === part.id)
           return (
             <li key={p.id} className={cx('card flex flex-wrap items-center gap-3 px-3.5 py-3', !p.is_active && 'opacity-60')}>
-              <Avatar name={p.display_name} color={p.avatar_color} size={38} />
+              <Avatar name={p.display_name} color={p.avatar_color} size={38} src={avatarOf(p.id)} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">
                   {p.display_name}
@@ -65,6 +65,7 @@ export default function AdminPlayers() {
                   {!p.is_active && <span className="ml-2 text-[11px] text-loss">compte suspendu</span>}
                 </p>
                 <p className="truncate text-[12px] text-muted">
+                  <ChesscomStatus status={p.chesscom_username ? chesscomProfiles.get(p.id)?.status : undefined} />
                   {p.chesscom_username ? `@${p.chesscom_username}` : 'pas de pseudo Chess.com'} · Elo{' '}
                   {part?.initial_elo ?? p.declared_elo ?? '—'}
                   {st && ` · ${st.points} pts (#${st.rank}) · ${st.wins}V ${st.draws}N ${st.losses}D`}
@@ -75,6 +76,16 @@ export default function AdminPlayers() {
                   <Link to={`/joueurs/${part.id}`} className="grid size-9 place-items-center rounded-lg bg-white/5 hover:bg-white/10" title="Statistiques">
                     <BarChart3 size={16} />
                   </Link>
+                )}
+                {p.chesscom_username && (
+                  <button
+                    className="grid size-9 place-items-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50"
+                    title="Resynchroniser avec Chess.com"
+                    disabled={busy === `cc-${p.id}`}
+                    onClick={() => run(`cc-${p.id}`, async () => void (await chesscom({ action: 'sync-profile', profile_id: p.id, force: true })))}
+                  >
+                    {busy === `cc-${p.id}` ? <Spinner className="size-4" /> : <RefreshCw size={15} />}
+                  </button>
                 )}
                 <button
                   className="grid size-9 place-items-center rounded-lg bg-white/5 hover:bg-white/10"
@@ -114,6 +125,12 @@ export default function AdminPlayers() {
   )
 }
 
+function ChesscomStatus({ status }: { status?: 'verified' | 'not_found' | 'error' }) {
+  if (status === 'verified') return <BadgeCheck size={12} className="mr-1 inline text-win" aria-label="Pseudo vérifié" />
+  if (status === 'not_found') return <XCircle size={12} className="mr-1 inline text-loss" aria-label="Pseudo introuvable" />
+  return null
+}
+
 function ParticipationToggle({ part, busy, onToggle }: { part: Participant; busy: boolean; onToggle: (s: 'active' | 'suspended') => void }) {
   return part.status === 'active' ? (
     <button className="btn-ghost px-3 py-1.5 text-[14px]" disabled={busy} onClick={() => onToggle('suspended')} title="Suspendre la participation">
@@ -149,10 +166,13 @@ function EditPlayer({
     setBusy(true)
     setError(null)
     try {
+      // Pseudo : vérifié auprès de Chess.com et tracé (l'admin peut le changer même en cours de championnat).
+      if (chess.trim().toLowerCase() !== (profile.chesscom_username ?? '').toLowerCase()) {
+        await chesscom({ action: 'set-username', profile_id: profile.id, username: chess.trim() })
+      }
       await admin.updateProfile({
         id: profile.id,
         display_name: name,
-        chesscom_username: chess || null,
         declared_elo: elo === '' ? null : Number(elo),
         is_active: active,
         initial_elo: participant && initialElo !== '' ? Number(initialElo) : null,
@@ -182,7 +202,7 @@ function EditPlayer({
         <Field label="Nom">
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Pseudo Chess.com">
+        <Field label="Pseudo Chess.com (vérifié auprès de Chess.com, modification tracée)">
           <input className="input" value={chess} onChange={(e) => setChess(e.target.value)} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
