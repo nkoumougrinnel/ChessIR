@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Coffee, Lock, RefreshCw, Send, ChevronDown } from 'lucide-react'
+import { AlertTriangle, Coffee, Lock, RefreshCw, Send, ChevronDown, Sparkles } from 'lucide-react'
 import { useChampionship, useMatchViews } from '../state/championship'
-import { admin } from '../lib/api'
+import { admin, chesscom } from '../lib/api'
 import { generateWeekDraw, type WeekDraw } from '../lib/pairing'
 import type { Week } from '../lib/types'
 import { ErrorBox, PageLoader, PieceColor, Spinner, StatusBadge, cx } from '../components/ui'
@@ -31,13 +31,37 @@ export default function AdminWeeks() {
 /* --------------------------- Semaine en cours --------------------------- */
 
 function ActiveWeek({ week }: { week: Week }) {
-  const { reload } = useChampionship()
+  const { reload, chesscomGames, nameOf } = useChampionship()
+  const [syncing, setSyncing] = useState(false)
+  const [syncInfo, setSyncInfo] = useState<string | null>(null)
   const views = useMatchViews().filter((v) => v.week.id === week.id)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const count = (s: MatchStatus) => views.filter((v) => v.match.status === s).length
   const blocking = views.filter((v) => v.match.status === 'pending' || v.match.status === 'disputed')
   const scheduled = count('scheduled')
+  // Parties trouvées sur Chess.com mais jamais déclarées : preuve utile avant la clôture.
+  const detectedUndeclared = views.filter(
+    (v) => v.match.status === 'scheduled' && chesscomGames.some((g) => g.match_id === v.match.id),
+  )
+
+  async function syncWeek() {
+    setSyncing(true)
+    setError(null)
+    setSyncInfo(null)
+    try {
+      const r = await chesscom<{ summary: Record<string, number> }>({ action: 'sync-week', week_id: week.id })
+      const s = r.summary ?? {}
+      setSyncInfo(
+        `${s.certain ?? 0} partie(s) certaine(s), ${s.uncertain ?? 0} incertaine(s), ${s.none ?? 0} sans partie, ${s.no_username ?? 0} sans pseudo.`,
+      )
+      await reload()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function close() {
     const msg =
@@ -69,6 +93,33 @@ function ActiveWeek({ week }: { week: Week }) {
         ))}
       </div>
       <RoundsTable weekId={week.id} />
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button className="btn-ghost px-3 py-2 text-[14px]" disabled={syncing} onClick={() => void syncWeek()}>
+          {syncing ? <Spinner /> : <RefreshCw size={15} />} Synchroniser la semaine avec Chess.com
+        </button>
+        {syncInfo && <span className="text-[13px] text-muted">{syncInfo}</span>}
+      </div>
+
+      {detectedUndeclared.length > 0 && (
+        <div className="mt-4 rounded-xl border border-[#8fa8ff]/30 bg-[#8fa8ff]/[0.06] px-4 py-3 text-[13px]">
+          <p className="mb-1.5 flex items-center gap-2 font-semibold text-[#b9c8ff]">
+            <Sparkles size={15} /> Parties trouvées sur Chess.com mais non déclarées
+          </p>
+          <ul className="space-y-1">
+            {detectedUndeclared.map((v) => (
+              <li key={v.match.id}>
+                <Link to={`/admin/matchs/${v.match.id}`} className="underline">
+                  R{v.round.number} — {nameOf(v.match.white_id)} vs {nameOf(v.match.black_id)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[12px] text-faint">
+            Aucune validation automatique : à la clôture ces matchs passeront « non joué », sauf décision de votre part.
+          </p>
+        </div>
+      )}
 
       {blocking.length > 0 && (
         <div className="mt-4 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-[13px]">

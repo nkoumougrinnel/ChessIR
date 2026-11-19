@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUp, ArrowDown, CalendarDays, ChevronRight, Minus, Trophy, UserPlus, Coffee, BellRing } from 'lucide-react'
+import { ArrowRight, ArrowUp, ArrowDown, CalendarDays, ChevronRight, Minus, Trophy, UserPlus, Coffee, BellRing, Sparkles } from 'lucide-react'
 import { useAuth } from '../state/auth'
 import { useChampionship } from '../state/championship'
 import { useByesOf, useGamesOf } from '../components/matches'
@@ -11,13 +11,17 @@ import { dayShort, ddmm, weekLabel, weekRange, OUTCOME_LABEL } from '../lib/form
 
 export default function HomePage() {
   const { profile } = useAuth()
-  const { loading, tournament, me, activeWeek, weeks, nameOf } = useChampionship()
+  const { loading, tournament, me, activeWeek, weeks, nameOf, avatarOf, chesscomGames } = useChampionship()
   const games = useGamesOf(me?.id, profile?.id)
   const progress = useProgress(me?.id)
   const currentWeek = activeWeek ?? weeks[0] ?? null
   const weekGames = games.filter((g) => g.week.id === currentWeek?.id).sort((a, b) => a.round.number - b.round.number)
   const weekByes = useByesOf(me?.id, currentWeek?.id)
   const toAnswer = games.filter((g) => g.needsMyAnswer)
+  // Parties trouvées sur Chess.com pour des matchs encore à jouer : à accepter.
+  const detected = games.filter(
+    (g) => g.match.status === 'scheduled' && chesscomGames.some((c) => c.match_id === g.match.id && c.confidence === 'certain'),
+  )
 
   if (loading) return <PageLoader />
 
@@ -81,7 +85,7 @@ export default function HomePage() {
             <>
               {/* Joueur */}
               <Link to="/profil" className="card card-hover flex items-center gap-3.5 px-4 py-4 animate-rise [animation-delay:60ms]">
-                <Avatar name={profile?.display_name ?? ''} color={profile?.avatar_color} size={52} ring />
+                <Avatar name={profile?.display_name ?? ''} color={profile?.avatar_color} size={52} ring src={avatarOf(profile?.id)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-[19px] font-semibold uppercase">{profile?.display_name}</p>
                   <p className="text-[13px] text-muted">
@@ -120,6 +124,19 @@ export default function HomePage() {
                     {toAnswer.length === 1
                       ? `${nameOf(toAnswer[0].opponentId)} attend votre confirmation`
                       : `${toAnswer.length} résultats attendent votre confirmation`}
+                  </p>
+                  <ChevronRight size={18} className="text-faint" />
+                </Link>
+              )}
+
+              {detected.length > 0 && (
+                <Link
+                  to={`/matchs/${detected[0].match.id}`}
+                  className="card flex items-center gap-3 border-win/40 px-4 py-3.5 animate-rise"
+                >
+                  <Sparkles size={22} className="text-win" />
+                  <p className="flex-1 text-[14px]">
+                    Partie trouvée sur Chess.com contre {nameOf(detected[0].opponentId)} : confirmez le résultat
                   </p>
                   <ChevronRight size={18} className="text-faint" />
                 </Link>

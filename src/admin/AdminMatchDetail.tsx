@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Gavel } from 'lucide-react'
+import { ExternalLink, Gavel, Link2, Link2Off, RefreshCw } from 'lucide-react'
 import { useChampionship } from '../state/championship'
-import { admin, fetchMatchLog } from '../lib/api'
+import { admin, chesscom, fetchMatchLog } from '../lib/api'
+import { TIME_CLASS_LABEL } from '../components/chesscom'
 import type { MatchLog, MatchResult } from '../lib/types'
 import { ErrorBox, PageHeader, PageLoader, PieceColor, Spinner, StatusBadge, cx, useToast } from '../components/ui'
 import { AdminCard } from './AdminLayout'
@@ -12,7 +13,7 @@ type Decision = MatchResult | 'unplayed' | 'reset'
 
 export default function AdminMatchDetail() {
   const { id } = useParams()
-  const { loading, matches, roundById, weekById, participantById, nameOf, profiles, reload } = useChampionship()
+  const { loading, matches, roundById, weekById, participantById, nameOf, profiles, reload, gamesOfMatch } = useChampionship()
   const [log, setLog] = useState<MatchLog[]>([])
   const [decision, setDecision] = useState<Decision | null>(null)
   const [comment, setComment] = useState('')
@@ -42,6 +43,20 @@ export default function AdminMatchDetail() {
     { value: 'unplayed', label: 'Non joué (0 point chacun)' },
     { value: 'reset', label: 'Remettre « à jouer »' },
   ]
+
+  async function link(gameId: string | null) {
+    setBusy(true)
+    setError(null)
+    try {
+      await admin.linkGame(match!.id, gameId, comment.trim())
+      await reload()
+      toast(gameId ? 'Partie liée' : 'Partie déliée')
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function apply() {
     if (!decision) return
@@ -93,6 +108,75 @@ export default function AdminMatchDetail() {
             </dd>
           </div>
         </dl>
+      </AdminCard>
+
+      <AdminCard
+        title="Parties Chess.com"
+        action={
+          <button
+            className="btn-ghost px-3 py-1.5 text-[13px]"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true)
+                setError(null)
+                try {
+                  await chesscom({ action: 'detect-match', match_id: match!.id })
+                  await reload()
+                } catch (e) {
+                  setError((e as Error).message)
+                } finally {
+                  setBusy(false)
+                }
+              })()
+            }
+          >
+            <RefreshCw size={14} /> Rechercher
+          </button>
+        }
+      >
+        {gamesOfMatch(match.id).length === 0 ? (
+          <p className="text-[13px] text-muted">
+            Aucune partie trouvée{match.chesscom_checked_at && ` (dernière recherche ${relativeTime(match.chesscom_checked_at)})`}.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {gamesOfMatch(match.id).map((g) => {
+              const linked = g.id === match.chesscom_game_id
+              return (
+                <li key={g.id} className={cx('rounded-xl px-3 py-2.5 text-[13px]', linked ? 'border border-win/40 bg-win/[0.06]' : 'bg-white/[0.03]')}>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-medium">{resultName(g.result_for_match)}</span>
+                    <span className="text-muted">{new Date(g.end_time).toLocaleString('fr-FR')}</span>
+                    <span className="text-muted">{TIME_CLASS_LABEL[g.time_class] ?? g.time_class}{g.rated === false && ' · amicale'}</span>
+                    <span className={g.colors_match ? 'text-muted' : 'text-warn'}>
+                      ⚪ {g.white_username} · ⚫ {g.black_username}
+                    </span>
+                    <span className={g.confidence === 'certain' ? 'text-win' : 'text-warn'}>
+                      {g.confidence === 'certain' ? 'certaine' : g.uncertainty_reason ?? 'incertaine'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <a href={g.game_url} target="_blank" rel="noreferrer" className="btn-ghost px-3 py-1 text-[13px]">
+                      <ExternalLink size={13} /> Voir
+                    </a>
+                    <button
+                      className="btn-ghost px-3 py-1 text-[13px]"
+                      disabled={busy || comment.trim().length < 3}
+                      title={comment.trim().length < 3 ? 'Saisissez un motif ci-dessous' : undefined}
+                      onClick={() => void link(linked ? null : g.id)}
+                    >
+                      {linked ? <Link2Off size={13} /> : <Link2 size={13} />} {linked ? 'Délier' : 'Lier à ce match'}
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <p className="mt-2 text-[12px] text-faint">
+          Lier une partie ne change pas le résultat : fixez-le si besoin avec une décision ci-dessous (même motif).
+        </p>
       </AdminCard>
 
       <AdminCard title="Journal">
@@ -155,4 +239,7 @@ const ACTION: Record<MatchLog['action'], string> = {
   admin_set: 'arbitrage',
   admin_unplayed: 'non joué',
   admin_reset: 'remise à jouer',
+  detect: 'partie détectée',
+  link_game: 'partie Chess.com liée',
+  unlink_game: 'partie Chess.com déliée',
 }

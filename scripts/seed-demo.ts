@@ -94,12 +94,16 @@ function mondayWeeksAgo(n: number) {
 async function main() {
   console.log('→ Comptes de démonstration')
   const adminU = await user('admin@demo.chessir', 'Admin Chess IR', null)
-  await service.from('profiles').update({ role: 'admin' }).eq('id', adminU.id)
+  await service.from('profiles').update({ role: 'admin', chesscom_username: null }).eq('id', adminU.id)
+  await service.from('chesscom_profiles').delete().eq('profile_id', adminU.id)
 
   const players: Array<{ id: string; client: SupabaseClient; elo: number | null }> = []
   for (const [i, [name, chess, elo, color]] of PLAYERS.entries()) {
     const u = await user(`joueur${String(i + 1).padStart(2, '0')}@demo.chessir`, name, chess)
-    await service.from('profiles').update({ declared_elo: elo, avatar_color: color, display_name: name }).eq('id', u.id)
+    await service
+      .from('profiles')
+      .update({ declared_elo: elo, avatar_color: color, display_name: name, chesscom_username: chess })
+      .eq('id', u.id)
     players.push({ ...u, elo })
   }
 
@@ -168,6 +172,63 @@ async function main() {
       }
     }
     if (!current) await call(adminU.client, 'close_week', { p_week: weekId })
+  }
+
+  // Données Chess.com FICTIVES (aucun appel à l'API) : profils synchronisés et
+  // une partie « détectée » pour un match à jouer de joueur01, pour essayer le parcours.
+  console.log('→ Données Chess.com fictives')
+  for (const [i, p] of players.entries()) {
+    const elo = p.elo
+    await service.from('chesscom_profiles').upsert({
+      profile_id: p.id,
+      username: PLAYERS[i][1],
+      status: 'verified',
+      avatar_url: null,
+      ratings:
+        elo === null
+          ? {}
+          : {
+              rapid: { current: elo, best: elo + 60, win: 20 + i, loss: 18, draw: 3 },
+              blitz: { current: Math.max(100, elo - 120), best: elo, win: 40, loss: 45, draw: 4 },
+            },
+      joined_at: new Date(Date.UTC(2024, i % 12, 1)).toISOString(),
+      last_online: new Date().toISOString(),
+      fetched_at: new Date().toISOString(),
+    })
+  }
+  const me = participantOf.get(players[0].id)!
+  const { data: mine } = await service
+    .from('matches')
+    .select('id, white_id, black_id, status, rounds!inner(number, week_id, weeks!inner(status))')
+    .eq('tournament_id', tournamentId)
+    .eq('status', 'scheduled')
+    .eq('rounds.weeks.status', 'active')
+    .or(`white_id.eq.${me},black_id.eq.${me}`)
+  const target = mine?.[0]
+  if (target) {
+    const white = PLAYERS[players.findIndex((p) => participantOf.get(p.id) === target.white_id)]
+    const black = PLAYERS[players.findIndex((p) => participantOf.get(p.id) === target.black_id)]
+    await service.from('chesscom_games').insert({
+      tournament_id: tournamentId,
+      match_id: target.id,
+      game_url: `https://www.chess.com/game/live/demo-${target.id.slice(0, 8)}`,
+      end_time: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+      time_class: 'rapid',
+      time_control: '600',
+      rated: true,
+      white_username: white[1],
+      black_username: black[1],
+      white_rating: white[2],
+      black_rating: black[2],
+      white_result: 'win',
+      black_result: 'resigned',
+      result_for_match: 'white_win',
+      colors_match: true,
+      time_class_ok: true,
+      confidence: 'certain',
+      eco: 'https://www.chess.com/openings/Italian-Game',
+      accuracies: { white: 78.4, black: 64.1 },
+    })
   }
 
   console.log('\n✓ Données de démonstration prêtes.')

@@ -6,6 +6,10 @@ import { admin } from '../lib/api'
 import { ErrorBox, PageLoader, Spinner } from '../components/ui'
 import { AdminCard } from './AdminLayout'
 import { weekLabel, weekRange } from '../lib/format'
+import { TIME_CLASS_LABEL } from '../components/chesscom'
+
+type ChesscomSettings = { timeClasses: string[]; ratedOnly: boolean; timezone: string }
+const TIMEZONES = ['Africa/Douala', 'Africa/Lagos', 'Africa/Abidjan', 'Africa/Dakar', 'Europe/Paris', 'Europe/Brussels', 'America/Montreal', 'UTC']
 
 export const BYE_RULES = [
   { value: 0, label: '0 point', help: "L'exempt ne marque rien (neutre)." },
@@ -39,7 +43,16 @@ export default function AdminDashboard() {
         {tournament && (
           <p className="card px-4 py-3 text-[14px] text-muted">Le championnat « {tournament.name} » est terminé.</p>
         )}
-        <TournamentForm busy={busy} error={error} onSubmit={(name, bye) => run(() => admin.createTournament(name, bye))} />
+        <TournamentForm
+          busy={busy}
+          error={error}
+          onSubmit={(name, bye, cc) =>
+            run(async () => {
+              const id = await admin.createTournament(name, bye)
+              await admin.updateChesscomSettings(id, cc)
+            })
+          }
+        />
       </div>
     )
   }
@@ -56,6 +69,11 @@ export default function AdminDashboard() {
           <Info label="Participants actifs" value={String(active)} />
           <Info label="Semaine" value={activeWeek ? weekLabel(activeWeek.number) : '—'} />
           <Info label="Règle d'exemption" value={`${tournament.bye_points} pt${tournament.bye_points > 1 ? 's' : ''}`} />
+          <Info
+            label="Parties Chess.com retenues"
+            value={`${tournament.chesscom_time_classes.map((c) => TIME_CLASS_LABEL[c]).join(', ')}${tournament.chesscom_rated_only ? ' · classées' : ' · classées ou amicales'}`}
+          />
+          <Info label="Fuseau horaire" value={tournament.timezone} />
         </dl>
       </AdminCard>
 
@@ -66,8 +84,17 @@ export default function AdminDashboard() {
           <TournamentForm
             busy={busy}
             error={null}
-            initial={{ name: tournament.name, bye: tournament.bye_points }}
-            onSubmit={(name, bye) => run(() => admin.updateTournament(tournament.id, name, bye))}
+            initial={{
+              name: tournament.name,
+              bye: tournament.bye_points,
+              cc: { timeClasses: tournament.chesscom_time_classes, ratedOnly: tournament.chesscom_rated_only, timezone: tournament.timezone },
+            }}
+            onSubmit={(name, bye, cc) =>
+              run(async () => {
+                await admin.updateTournament(tournament.id, name, bye)
+                await admin.updateChesscomSettings(tournament.id, cc)
+              })
+            }
           />
           <AdminCard title="Lancer le championnat">
             <p className="mb-3 text-[14px] text-muted">
@@ -142,17 +169,22 @@ function TournamentForm({
   error,
   onSubmit,
 }: {
-  initial?: { name: string; bye: number }
+  initial?: { name: string; bye: number; cc: ChesscomSettings }
   busy: boolean
   error: string | null
-  onSubmit: (name: string, bye: number) => void
+  onSubmit: (name: string, bye: number, cc: ChesscomSettings) => void
 }) {
   const [name, setName] = useState(initial?.name ?? 'Championnat Chess IR')
   const [bye, setBye] = useState<number | null>(initial?.bye ?? null)
+  const [timeClasses, setTimeClasses] = useState<string[]>(initial?.cc.timeClasses ?? ['rapid'])
+  const [ratedOnly, setRatedOnly] = useState(initial?.cc.ratedOnly ?? false)
+  const [timezone, setTimezone] = useState(initial?.cc.timezone ?? 'Africa/Douala')
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (bye !== null) onSubmit(name.trim(), bye)
+    if (bye !== null && timeClasses.length) onSubmit(name.trim(), bye, { timeClasses, ratedOnly, timezone })
   }
+  const toggleTc = (tc: string) =>
+    setTimeClasses((cur) => (cur.includes(tc) ? cur.filter((x) => x !== tc) : [...cur, tc]))
   return (
     <AdminCard title={initial ? 'Paramètres' : 'Créer le championnat'}>
       <form onSubmit={submit} className="space-y-4">
@@ -178,8 +210,39 @@ function TournamentForm({
           </div>
           <p className="mt-2 text-[12px] text-faint">Cette règle sera affichée aux joueurs et figée au lancement.</p>
         </fieldset>
+        <fieldset>
+          <legend className="label">Détection des parties Chess.com</legend>
+          <div className="flex flex-wrap gap-2">
+            {(['rapid', 'blitz', 'bullet', 'daily'] as const).map((tc) => (
+              <label
+                key={tc}
+                className={`card cursor-pointer px-3 py-2 text-[14px] ${timeClasses.includes(tc) ? 'border-gold-400/70 bg-gold-400/10' : ''}`}
+              >
+                <input type="checkbox" className="sr-only" checked={timeClasses.includes(tc)} onChange={() => toggleTc(tc)} />
+                {TIME_CLASS_LABEL[tc]}
+              </label>
+            ))}
+          </div>
+          <label className="mt-3 flex items-center gap-2 text-[14px]">
+            <input type="checkbox" className="size-4 accent-[#f5b83d]" checked={ratedOnly} onChange={(e) => setRatedOnly(e.target.checked)} />
+            Parties classées uniquement (sinon les parties amicales comptent aussi)
+          </label>
+          <label className="mt-3 block">
+            <span className="label">Fuseau horaire (bornes des semaines)</span>
+            <select className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+              {TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-2 text-[12px] text-faint">
+            La cadence principale ({TIME_CLASS_LABEL[timeClasses[0] ?? 'rapid']}) sert aussi à synchroniser l'Elo des joueurs. Figé au lancement.
+          </p>
+        </fieldset>
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn-gold" disabled={busy || bye === null}>
+        <button className="btn-gold" disabled={busy || bye === null || timeClasses.length === 0}>
           {busy ? <Spinner className="text-night-950" /> : initial ? 'Enregistrer' : 'Créer'}
         </button>
       </form>

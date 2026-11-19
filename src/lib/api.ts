@@ -18,6 +18,7 @@ import type {
   WeekStandingRow,
 } from './types'
 import type { WeekDraw } from './pairing'
+import type { ChesscomGame, ChesscomProfile } from './types'
 
 /* ----------------------------- Lectures ----------------------------- */
 
@@ -113,7 +114,7 @@ export async function fetchNotifications(): Promise<Notification[]> {
 
 export async function updateMyProfile(
   id: string,
-  patch: Pick<Profile, 'display_name' | 'chesscom_username' | 'declared_elo' | 'avatar_color'>,
+  patch: Partial<Pick<Profile, 'display_name' | 'declared_elo' | 'avatar_color' | 'use_chesscom_avatar'>>,
 ) {
   unwrap(await supabase.from('profiles').update(patch).eq('id', id).select('id'))
 }
@@ -140,6 +141,20 @@ export const admin = {
   async createTournament(name: string, byePoints: number) {
     return unwrap(await supabase.rpc('create_tournament', { p_name: name, p_bye_points: byePoints })) as string
   },
+  /** Paramètres de détection Chess.com (modifiables tant que le championnat n'est pas lancé). */
+  async updateChesscomSettings(id: string, s: { timeClasses: string[]; ratedOnly: boolean; timezone: string }) {
+    unwrap(
+      await supabase.rpc('update_chesscom_settings', {
+        p_tournament: id,
+        p_time_classes: s.timeClasses,
+        p_rated_only: s.ratedOnly,
+        p_timezone: s.timezone,
+      }),
+    )
+  },
+  async linkGame(matchId: string, gameId: string | null, comment: string) {
+    unwrap(await supabase.rpc('admin_link_game', { p_match: matchId, p_game: gameId, p_comment: comment }))
+  },
   async updateTournament(id: string, name: string, byePoints: number) {
     unwrap(await supabase.rpc('update_tournament', { p_tournament: id, p_name: name, p_bye_points: byePoints }))
   },
@@ -158,7 +173,6 @@ export const admin = {
   async updateProfile(p: {
     id: string
     display_name: string
-    chesscom_username: string | null
     declared_elo: number | null
     is_active: boolean
     initial_elo: number | null
@@ -167,7 +181,6 @@ export const admin = {
       await supabase.rpc('admin_update_profile', {
         p_profile: p.id,
         p_display_name: p.display_name,
-        p_chesscom: p.chesscom_username ?? '',
         p_elo: p.declared_elo,
         p_is_active: p.is_active,
         p_initial_elo: p.initial_elo,
@@ -197,4 +210,33 @@ export const admin = {
   async revokeAward(id: string) {
     unwrap(await supabase.rpc('admin_revoke_award', { p_award: id }))
   },
+}
+
+/* ----------------------------- Chess.com ----------------------------- */
+
+export async function fetchChesscomProfiles(): Promise<ChesscomProfile[]> {
+  return unwrap(await supabase.from('chesscom_profiles').select('*'))
+}
+
+export async function fetchChesscomGames(tournamentId: string): Promise<ChesscomGame[]> {
+  return unwrap(await supabase.from('chesscom_games').select('*').eq('tournament_id', tournamentId).order('end_time'))
+}
+
+export async function acceptChesscomGame(matchId: string, gameId: string) {
+  unwrap(await supabase.rpc('accept_chesscom_game', { p_match: matchId, p_game: gameId }))
+}
+
+/** Appel de l'Edge Function `chesscom-sync` (seule à parler à l'API Chess.com). */
+export async function chesscom<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('chesscom-sync', { body })
+  if (error) {
+    // Message d'erreur renvoyé par la fonction, si disponible.
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      const payload = await ctx.json().catch(() => null)
+      if (payload?.error) throw new Error(payload.error)
+    }
+    throw new Error('Service Chess.com indisponible, réessayez plus tard.')
+  }
+  return data as T
 }

@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { ChevronRight, ExternalLink, History, LogOut, Pencil, Shield, UserX } from 'lucide-react'
+import { BadgeCheck, ChevronRight, ExternalLink, History, LogOut, Pencil, Shield, UserX } from 'lucide-react'
 import { useAuth } from '../state/auth'
 import { useChampionship } from '../state/championship'
 import { HistoryRow, useGamesOf } from '../components/matches'
@@ -8,11 +8,12 @@ import { ProgressChart } from '../components/ProgressChart'
 import { AchievementBadge, usePlayerAchievements } from '../components/achievements'
 import { Avatar, EmptyState, PageHeader, PageLoader, Stat } from '../components/ui'
 import { chessComProfile } from '../lib/format'
+import { ChesscomStatsCard } from '../components/chesscom'
 
 export default function ProfilePage() {
   const { participantId } = useParams()
   const { profile: myProfile, signOut } = useAuth()
-  const { loading, me, participantById, profiles, achievements } = useChampionship()
+  const { loading, me, participantById, profiles, achievements, avatarOf, chesscomProfiles } = useChampionship()
 
   const participant = participantId ? participantById.get(participantId) ?? null : me
   const profile = participant ? profiles.get(participant.profile_id) : participantId ? undefined : myProfile
@@ -59,7 +60,7 @@ export default function ProfilePage() {
 
       <div className="space-y-5">
         <div className="flex flex-col items-center text-center animate-rise">
-          <Avatar name={profile.display_name} color={profile.avatar_color} size={96} ring />
+          <Avatar name={profile.display_name} color={profile.avatar_color} size={96} ring src={avatarOf(profile.id)} />
           <h2 className="mt-3 font-display text-[26px] font-bold uppercase tracking-wide">{profile.display_name}</h2>
           <p className="font-display text-[18px] text-gold-300">
             Elo initial : {participant?.initial_elo ?? profile.declared_elo ?? 'non renseigné'}
@@ -71,6 +72,7 @@ export default function ProfilePage() {
               rel="noreferrer"
               className="mt-1 inline-flex items-center gap-1 text-[14px] text-[#8fa8ff] hover:underline"
             >
+              {chesscomProfiles.get(profile.id)?.status === 'verified' && <BadgeCheck size={14} className="text-win" aria-label="Vérifié" />}
               Chess.com : @{profile.chesscom_username} <ExternalLink size={13} />
             </a>
           ) : (
@@ -140,6 +142,9 @@ export default function ProfilePage() {
             {isMine ? "Vous n'êtes pas encore inscrit au championnat." : "Ce joueur n'est pas inscrit au championnat."}
           </p>
         )}
+
+        {/* Statistiques Chess.com : bloc séparé, hors championnat */}
+        <ChesscomStatsCard profileId={profile.id} isMine={isMine} />
 
         {isMine && (
           <div className="space-y-2.5 pt-2">

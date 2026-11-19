@@ -5,6 +5,7 @@ import { useChampionship, useMatchViews, type MatchView } from '../state/champio
 import { dayName, ddmm, dayShort, outcomeFor, OUTCOME_LABEL, OUTCOME_POINTS, type Outcome } from '../lib/format'
 import { Avatar, OutcomePill, PieceColor, StatusBadge, cx } from './ui'
 import type { Bye } from '../lib/types'
+import { GameLinkIcon } from './chesscom'
 
 export interface MyGame extends MatchView {
   color: 'white' | 'black'
@@ -50,7 +51,7 @@ export function useByesOf(participantId: string | null | undefined, weekId?: str
 
 /** Carte d'un match de la semaine (vue « Matchs »). */
 export function WeekMatchCard({ game, index = 0 }: { game: MyGame; index?: number }) {
-  const { nameOf, profileOf } = useChampionship()
+  const { nameOf, profileOf, avatarOf } = useChampionship()
   const opp = profileOf(game.opponentId)
   const { round, match } = game
   return (
@@ -70,7 +71,7 @@ export function WeekMatchCard({ game, index = 0 }: { game: MyGame; index?: numbe
         <ChevronRight size={18} className="text-faint" />
       </div>
       <div className="flex items-center gap-3">
-        <Avatar name={opp?.display_name ?? '?'} color={opp?.avatar_color} size={40} />
+        <Avatar name={opp?.display_name ?? '?'} color={opp?.avatar_color} size={40} src={avatarOf(opp?.id)} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-[18px] font-semibold">vs {nameOf(game.opponentId)}</p>
           <div className="mt-0.5 flex items-center gap-3">
@@ -118,11 +119,11 @@ export function ByeCard({ bye, playDate, roundNumber }: { bye: Bye; playDate: st
 
 /** Ligne compacte d'historique. */
 export function HistoryRow({ game, showWeek = true }: { game: MyGame; showWeek?: boolean }) {
-  const { nameOf, profileOf } = useChampionship()
+  const { nameOf, profileOf, avatarOf } = useChampionship()
   const opp = profileOf(game.opponentId)
   return (
     <Link to={`/matchs/${game.match.id}`} className="card card-hover flex items-center gap-3 px-4 py-3">
-      <Avatar name={opp?.display_name ?? '?'} color={opp?.avatar_color} size={36} />
+      <Avatar name={opp?.display_name ?? '?'} color={opp?.avatar_color} size={36} src={avatarOf(opp?.id)} />
       <div className="min-w-0 flex-1">
         <p className="text-[12px] text-faint">
           {dayShort(game.round.play_date)} {ddmm(game.round.play_date)}
@@ -142,6 +143,7 @@ export function HistoryRow({ game, showWeek = true }: { game: MyGame; showWeek?:
           <StatusBadge status={game.match.status} />
         )}
       </div>
+      <GameLinkIcon match={game.match} />
       <ChevronRight size={16} className="text-faint" />
     </Link>
   )

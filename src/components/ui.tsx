@@ -25,12 +25,34 @@ export function Avatar({
   color = 'violet',
   size = 40,
   ring = false,
+  src,
 }: {
   name: string
   color?: AvatarColor
   size?: number
   ring?: boolean
+  /** Avatar Chess.com (sinon initiales). */
+  src?: string
 }) {
+  const [broken, setBroken] = useState(false)
+  if (src && !broken) {
+    return (
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(true)}
+        className={cx(
+          'shrink-0 rounded-full bg-night-700 object-cover',
+          ring && 'ring-2 ring-gold-400/70 ring-offset-2 ring-offset-night-900',
+        )}
+        style={{ width: size, height: size }}
+      />
+    )
+  }
   return (
     <div
       className={cx(

@@ -6,7 +6,7 @@ import { Avatar, PageHeader, PageLoader } from '../components/ui'
 import { weekLabel } from '../lib/format'
 
 export default function AwardsPage() {
-  const { loading, me, tournament, achievements, weekById, weeks, nameOf, profileOf } = useChampionship()
+  const { loading, me, tournament, achievements, weekById, weeks, nameOf, profileOf, avatarOf } = useChampionship()
   const all = usePlayerAchievements({ tournamentId: tournament?.id })
 
   if (loading || all === null) return <PageLoader />
@@ -94,7 +94,7 @@ export default function AwardsPage() {
                           <Link to={`/joueurs/${pa.participant_id}`} className="flex items-center gap-3">
                             <Icon size={20} className="shrink-0 text-gold-400" />
                             <span className="flex-1 text-[14px] text-muted">{a.name}</span>
-                            <Avatar name={p?.display_name ?? '?'} color={p?.avatar_color} size={24} />
+                            <Avatar name={p?.display_name ?? '?'} color={p?.avatar_color} size={24} src={avatarOf(p?.id)} />
                             <span className="max-w-[40%] truncate font-medium">{nameOf(pa.participant_id)}</span>
                           </Link>
                         </li>
