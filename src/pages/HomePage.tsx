@@ -7,6 +7,8 @@ import { useProgress } from '../hooks/useProgress'
 import { BellButton, Brand, Logo } from '../components/Layout'
 import { Avatar, EmptyState, PageLoader, StatusBadge, cx } from '../components/ui'
 import { ProgressChart } from '../components/ProgressChart'
+import { InstallCard } from '../components/InstallCard'
+import { NextMatchCard } from '../components/NextMatchCard'
 import { dayShort, ddmm, weekLabel, weekRange, OUTCOME_LABEL } from '../lib/format'
 
 export default function HomePage() {
@@ -19,8 +21,14 @@ export default function HomePage() {
   const weekByes = useByesOf(me?.id, currentWeek?.id)
   const toAnswer = games.filter((g) => g.needsMyAnswer)
   // Parties trouvées sur Chess.com pour des matchs encore à jouer : à accepter.
+  // Le prochain match à jouer est mis en avant par sa propre carte : la bannière ne signale que les autres.
+  const nextId = weekGames.filter((g) => g.match.status === 'scheduled').sort((x, y) => x.round.number - y.round.number)[0]
+    ?.match.id
   const detected = games.filter(
-    (g) => g.match.status === 'scheduled' && chesscomGames.some((c) => c.match_id === g.match.id && c.confidence === 'certain'),
+    (g) =>
+      g.match.status === 'scheduled' &&
+      g.match.id !== nextId &&
+      chesscomGames.some((c) => c.match_id === g.match.id && c.confidence === 'certain'),
   )
 
   if (loading) return <PageLoader />
@@ -142,9 +150,12 @@ export default function HomePage() {
                 </Link>
               )}
 
+              {/* Action principale : le prochain match à jouer */}
+              <NextMatchCard games={weekGames} weekOpen={!!activeWeek} />
+
               {/* Matchs de la semaine */}
               <section className="animate-rise [animation-delay:180ms]">
-                <h2 className="section-title mb-2.5">{activeWeek ? 'Prochains matchs' : 'Matchs de la semaine'}</h2>
+                <h2 className="section-title mb-2.5">Mes matchs de la semaine</h2>
                 {weekGames.length === 0 && weekByes.length === 0 ? (
                   <div className="card px-4 py-5 text-center text-[14px] text-muted">
                     Le tirage de la semaine n'est pas encore publié.
@@ -197,6 +208,8 @@ export default function HomePage() {
               )}
             </>
           )}
+
+          <InstallCard dismissible />
 
           <Link to="/classement" className="btn-gold w-full animate-rise [animation-delay:300ms]">
             Voir le classement <ArrowRight size={18} />

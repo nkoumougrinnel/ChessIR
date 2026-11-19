@@ -1,7 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './state/auth'
-import { ChampionshipProvider } from './state/championship'
+import { ChampionshipProvider, useChampionship } from './state/championship'
+import { hideSplash } from './lib/splash'
+import { UpdateBanner } from './components/UpdateBanner'
+import { ShareProvider } from './components/ShareSheet'
 import { isConfigured } from './lib/supabase'
 import Layout from './components/Layout'
 import { PageLoader } from './components/ui'
@@ -14,6 +17,7 @@ import ProfilePage from './pages/ProfilePage'
 import EditProfilePage from './pages/EditProfilePage'
 import AwardsPage from './pages/AwardsPage'
 import NotificationsPage from './pages/NotificationsPage'
+import PlayerHistoryPage from './pages/PlayerHistoryPage'
 
 // Espace admin chargé à la demande : les participants ne téléchargent pas ce code.
 const AdminLayout = lazy(() => import('./admin/AdminLayout'))
@@ -24,6 +28,16 @@ const AdminMatches = lazy(() => import('./admin/AdminMatches'))
 const AdminMatchDetail = lazy(() => import('./admin/AdminMatchDetail'))
 const AdminStandings = lazy(() => import('./admin/AdminStandings'))
 const AdminAwards = lazy(() => import('./admin/AdminAwards'))
+
+/** Retire l'écran de lancement quand la session et les données du championnat sont chargées. */
+function SplashGate() {
+  const { session, loading: authLoading } = useAuth()
+  const { loading } = useChampionship()
+  useEffect(() => {
+    if (!authLoading && (!session || !loading)) hideSplash()
+  }, [authLoading, session, loading])
+  return null
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
@@ -54,11 +68,17 @@ function MissingConfig() {
 }
 
 export default function App() {
-  if (!isConfigured) return <MissingConfig />
+  if (!isConfigured) {
+    hideSplash()
+    return <MissingConfig />
+  }
   return (
     <BrowserRouter>
       <AuthProvider>
         <ChampionshipProvider>
+          <ShareProvider>
+          <SplashGate />
+          <UpdateBanner />
           <Routes>
             <Route path="/connexion" element={<AuthPage />} />
             <Route
@@ -76,6 +96,7 @@ export default function App() {
               <Route path="profil/modifier" element={<EditProfilePage />} />
               <Route path="profil/recompenses" element={<AwardsPage />} />
               <Route path="joueurs/:participantId" element={<ProfilePage />} />
+              <Route path="joueurs/:participantId/historique" element={<PlayerHistoryPage />} />
               <Route path="recompenses" element={<AwardsPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
             </Route>
@@ -101,6 +122,7 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ShareProvider>
         </ChampionshipProvider>
       </AuthProvider>
     </BrowserRouter>

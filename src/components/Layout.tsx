@@ -42,8 +42,22 @@ export function BellButton() {
   )
 }
 
+/** Nombre de matchs où le joueur doit agir : confirmer un résultat ou accepter une partie détectée. */
+function useActionsNeeded() {
+  const { profile } = useAuth()
+  const { me, matches, chesscomGames } = useChampionship()
+  if (!me || !profile) return 0
+  return matches.filter((m) => {
+    if (m.white_id !== me.id && m.black_id !== me.id) return false
+    if (m.status === 'pending') return m.declared_by !== profile.id
+    if (m.status === 'scheduled') return chesscomGames.some((g) => g.match_id === m.id && g.confidence === 'certain')
+    return false
+  }).length
+}
+
 export default function Layout() {
   const { profile } = useAuth()
+  const actions = useActionsNeeded()
   const location = useLocation()
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
@@ -78,7 +92,17 @@ export default function Layout() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon size={22} strokeWidth={isActive ? 2.4 : 1.8} />
+                  <span className="relative">
+                    <Icon size={22} strokeWidth={isActive ? 2.4 : 1.8} />
+                    {to === '/matchs' && actions > 0 && (
+                      <span
+                        className="absolute -top-1.5 -right-2.5 grid min-w-[17px] place-items-center rounded-full bg-gold-400 px-1 text-[10px] font-bold text-night-950 ring-2 ring-night-900"
+                        aria-label={`${actions} action(s) en attente`}
+                      >
+                        {actions}
+                      </span>
+                    )}
+                  </span>
                   {label}
                 </>
               )}

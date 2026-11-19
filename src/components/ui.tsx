@@ -137,7 +137,7 @@ export function PageHeader({
 }) {
   const navigate = useNavigate()
   return (
-    <header className="sticky top-0 z-20 -mx-4 mb-4 flex h-14 items-center gap-2 bg-night-950/70 px-4 backdrop-blur-md">
+    <header className="sticky top-0 z-20 -mx-4 mb-4 flex h-14 items-center gap-2 border-b border-white/[0.04] bg-night-950/90 px-4 backdrop-blur-lg">
       <div className="w-10">
         {back && (
           <button

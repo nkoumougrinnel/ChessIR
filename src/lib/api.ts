@@ -95,6 +95,17 @@ export async function fetchSnapshots(participantId: string): Promise<Snapshot[]>
   return unwrap(await supabase.from('standings_snapshots').select('*').eq('participant_id', participantId))
 }
 
+/** Photo du classement de tous les joueurs à la clôture d'une semaine. */
+export async function fetchWeekSnapshots(weekId: string): Promise<Snapshot[]> {
+  return unwrap(await supabase.from('standings_snapshots').select('*').eq('week_id', weekId))
+}
+
+/** Réglages généraux (ex. lien du groupe WhatsApp). */
+export async function fetchSettings(): Promise<Record<string, string | null>> {
+  const rows: Array<{ key: string; value: string | null }> = unwrap(await supabase.from('app_settings').select('key, value'))
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]))
+}
+
 export async function fetchAchievements(): Promise<Achievement[]> {
   return unwrap(await supabase.from('achievements').select('*').order('sort_order'))
 }
@@ -152,6 +163,9 @@ export const admin = {
       }),
     )
   },
+  async setSetting(key: 'whatsapp_group_url', value: string) {
+    unwrap(await supabase.rpc('set_app_setting', { p_key: key, p_value: value }))
+  },
   async linkGame(matchId: string, gameId: string | null, comment: string) {
     unwrap(await supabase.rpc('admin_link_game', { p_match: matchId, p_game: gameId, p_comment: comment }))
   },
@@ -160,6 +174,10 @@ export const admin = {
   },
   async startTournament(id: string) {
     unwrap(await supabase.rpc('start_tournament', { p_tournament: id }))
+  },
+  /** Uniquement tant qu'aucun tirage n'a été publié ; `confirmName` = nom exact du championnat. */
+  async deleteTournament(id: string, confirmName: string) {
+    unwrap(await supabase.rpc('delete_tournament', { p_tournament: id, p_confirm_name: confirmName }))
   },
   async finishTournament(id: string) {
     unwrap(await supabase.rpc('finish_tournament', { p_tournament: id }))

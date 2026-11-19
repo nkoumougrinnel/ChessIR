@@ -1,0 +1,504 @@
+% =====================================================================
+%  Chess IR — Guide du participant
+%  Règles du championnat et utilisation de l'application chessir.vercel.app
+%  Compilation : latexmk -pdf guide-chess-ir.tex
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[scaled=0.95]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage[a4paper,margin=2.2cm,headheight=14pt]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{fontawesome5}
+\usepackage[most]{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+
+% ---------------------------------------------------------------------
+% Identité visuelle Chess IR
+% ---------------------------------------------------------------------
+\definecolor{nuit}{HTML}{0C0F2C}
+\definecolor{nuitclair}{HTML}{1A1E4A}
+\definecolor{or}{HTML}{E09A24}
+\definecolor{orclair}{HTML}{F5B83D}
+\definecolor{violet}{HTML}{6C5CE7}
+\definecolor{vert}{HTML}{16A34A}
+\definecolor{rouge}{HTML}{DC2626}
+\definecolor{gris}{HTML}{5B6185}
+\definecolor{fond}{HTML}{F6F6FB}
+
+\hypersetup{colorlinks=true,linkcolor=nuit,urlcolor=or}
+
+\titleformat{\section}{\Large\bfseries\color{nuit}}{\colorbox{orclair}{\makebox[1.6em]{\color{nuit}\thesection}}}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{nuitclair}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.6em}{0.8em}
+
+\setlist{itemsep=0.25em,topsep=0.4em}
+\setlist[itemize]{label=\textcolor{or}{\small\faChessPawn}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{gris}Chess IR — Guide du participant}
+\fancyhead[R]{\small\color{gris}\href{https://chessir.vercel.app}{chessir.vercel.app}}
+\fancyfoot[C]{\small\color{gris}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{orclair}\leaders\hrule height \headrulewidth\hfill}}
+
+% Encadrés
+\newtcolorbox{aretenir}[1][À retenir]{enhanced,colback=fond,colframe=or,boxrule=0.8pt,arc=3mm,
+  fonttitle=\bfseries,coltitle=nuit,colbacktitle=orclair,title={\faStar\ #1},left=3mm,right=3mm}
+\newtcolorbox{attention}[1][Attention]{enhanced,colback=red!3,colframe=rouge,boxrule=0.8pt,arc=3mm,
+  fonttitle=\bfseries,colbacktitle=rouge,title={\faExclamationTriangle\ #1},left=3mm,right=3mm}
+\newtcolorbox{astuce}[1][Astuce]{enhanced,colback=violet!4,colframe=violet,boxrule=0.8pt,arc=3mm,
+  fonttitle=\bfseries,colbacktitle=violet,title={\faLightbulb\ #1},left=3mm,right=3mm}
+
+% Étapes numérotées
+\newcounter{etape}
+\newcommand{\etape}[1]{\stepcounter{etape}\par\noindent
+  \tikz[baseline=-0.6ex]\node[circle,fill=orclair,text=nuit,font=\bfseries\small,inner sep=2.2pt,minimum size=1.5em]{\theetape};\ \textbf{#1}\par\smallskip}
+\newcommand{\resetetapes}{\setcounter{etape}{0}}
+
+\newcommand{\app}{\textbf{Chess~IR}}
+\newcommand{\bouton}[1]{\tikz[baseline=(b.base)]\node[draw=or,fill=orclair!25,rounded corners=2pt,inner sep=2pt,font=\small\bfseries](b){#1};}
+\newcommand{\lien}{\href{https://chessir.vercel.app}{\textbf{chessir.vercel.app}}}
+
+\begin{document}
+
+% =====================================================================
+% Page de titre
+% =====================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[nuit] (current page.south west) rectangle (current page.north east);
+  \shade[inner color=violet!55!nuit,outer color=nuit] ([yshift=-1cm]current page.north) circle (11cm);
+  % Damier en perspective
+  \begin{scope}[shift={([yshift=4.2cm]current page.south)}]
+    \foreach \i in {0,...,5}{
+      \foreach \j in {-7,...,6}{
+        \pgfmathtruncatemacro{\parite}{mod(\i+\j+20,2)}
+        \ifnum\parite=0
+          \pgfmathsetmacro{\ya}{-\i*0.75}\pgfmathsetmacro{\yb}{-(\i+1)*0.75}
+          \pgfmathsetmacro{\sa}{0.9+\i*0.32}\pgfmathsetmacro{\sb}{0.9+(\i+1)*0.32}
+          \fill[white,opacity=0.06] (\j*\sa,\ya) -- ({(\j+1)*\sa},\ya) -- ({(\j+1)*\sb},\yb) -- (\j*\sb,\yb) -- cycle;
+        \fi
+      }
+    }
+  \end{scope}
+  \node at ([yshift=-8.2cm]current page.north) {\includegraphics[width=5cm]{../icone.png}};
+  \node[text=white,font=\fontsize{46}{50}\selectfont\bfseries] at ([yshift=-12.6cm]current page.north)
+    {Chess \textcolor{orclair}{IR}};
+  \node[text=white!75,font=\Large] at ([yshift=-14cm]current page.north) {Jouer. Progresser. Grimper.};
+  \node[text=white,font=\LARGE\bfseries] at ([yshift=-17cm]current page.north) {Guide du participant};
+  \node[text=white!80,font=\large,align=center] at ([yshift=-18.4cm]current page.north)
+    {Règles du championnat d'échecs de la classe\\et utilisation de l'application};
+  \node[text=orclair,font=\Large\bfseries] at ([yshift=-21.2cm]current page.north)
+    {\faGlobe\ \href{https://chessir.vercel.app}{chessir.vercel.app}};
+\end{tikzpicture}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{Chess IR en bref}
+% =====================================================================
+\app{} est le championnat d'échecs amical de la classe. Débutants, joueurs occasionnels ou confirmés :
+tout le monde joue, personne n'est éliminé, et chacun progresse à son rythme.
+
+\begin{itemize}
+  \item \textbf{On joue sur Chess.com}, la plateforme d'échecs en ligne.
+  \item \textbf{On gère tout sur \lien} : adversaires de la semaine, déclaration des résultats,
+        classement, statistiques, récompenses.
+  \item \textbf{On partage dans le groupe WhatsApp} de la classe : annonces de matchs, résultats,
+        classements et récompenses.
+\end{itemize}
+
+\begin{aretenir}
+Chaque semaine : \textbf{3 adversaires}, connus dès le dimanche. Tu joues tes parties sur Chess.com quand
+ça t'arrange dans la semaine, tu déclares le résultat dans \app{}, ton adversaire le confirme, et tes points
+s'ajoutent au classement général. Victoire = 3 points, nul = 1 point, défaite = 0 point.
+\end{aretenir}
+
+% =====================================================================
+\section{Ce qu'il te faut}
+% =====================================================================
+\begin{enumerate}[label=\textcolor{or}{\bfseries\arabic*.}]
+  \item \textbf{Un compte Chess.com} — \emph{obligatoire}. C'est là que se jouent toutes les parties.
+        Il est gratuit : \href{https://www.chess.com}{www.chess.com}. Note bien ton \emph{nom d'utilisateur}
+        (pseudo) : il te sera demandé.
+  \item \textbf{Un compte \app{}}, créé sur \lien{} (voir section~\ref{sec:inscription}).
+  \item \textbf{Ton smartphone}, avec Chrome (Android) ou Safari (iPhone). \app{} est conçu pour le téléphone :
+        installe-le sur ton écran d'accueil (section~\ref{sec:installer}) et utilise-le comme une application.
+  \item \textbf{L'accès au groupe WhatsApp} de la classe. Le lien du groupe est disponible dans l'application
+        (bouton \bouton{Ouvrir le groupe} dans les fenêtres de partage).
+\end{enumerate}
+
+\begin{attention}[Ton pseudo Chess.com]
+Le pseudo saisi dans \app{} doit être \textbf{exactement} celui de ton compte Chess.com. L'application le vérifie
+auprès de Chess.com : un pseudo inexistant est refusé. Une fois le championnat lancé, \textbf{seul
+l'administrateur} peut le modifier. C'est grâce à lui que l'application retrouve automatiquement tes parties.
+\end{attention}
+
+% =====================================================================
+\section{S'inscrire et installer l'application}\label{sec:inscription}
+% =====================================================================
+\subsection{Créer ton compte}
+\resetetapes
+\etape{Ouvre \lien{} et choisis l'onglet \bouton{Inscription}.}
+Renseigne ton nom ou pseudonyme (celui que verront les autres), ton pseudo Chess.com, ton adresse e-mail et
+un mot de passe (6 caractères minimum).
+
+\etape{Confirme ton adresse e-mail si on te le demande.}
+Si un e-mail de confirmation t'est envoyé, clique sur le lien qu'il contient, puis connecte-toi.
+
+\etape{Attends ton inscription au championnat.}
+Créer un compte ne suffit pas : c'est l'\textbf{administrateur} qui inscrit chaque joueur au championnat.
+Tant que ce n'est pas fait, l'accueil affiche « Pas encore inscrit ».
+
+\etape{Vérifie ton profil.}
+Dans \bouton{Profil}, ton pseudo Chess.com doit apparaître avec la mention \textcolor{vert}{\faCheckCircle\ vérifié}.
+Ton Elo et ton avatar sont repris automatiquement de Chess.com.
+
+\subsection{Installer l'application sur ton téléphone}\label{sec:installer}
+\app{} s'installe comme une vraie application, sans passer par un store. C'est la façon recommandée de l'utiliser :
+une icône sur ton écran d'accueil, en plein écran, ouverte en un geste.
+\begin{itemize}
+  \item \textbf{Android (Chrome)} : touche \bouton{Installer l'application} sur l'accueil ou dans ton profil.
+  \item \textbf{iPhone (Safari)} : touche \faShareSquare\ \textbf{Partager}, puis \textbf{Sur l'écran d'accueil}, puis \textbf{Ajouter}.
+\end{itemize}
+Ouvre bien le lien dans Chrome ou Safari, pas dans le navigateur intégré de WhatsApp ou d'Instagram.
+L'application installée \textbf{se met à jour toute seule} : rien à télécharger de nouveau.
+
+% =====================================================================
+\section{Le format du championnat}
+% =====================================================================
+\begin{itemize}
+  \item \textbf{Un championnat dure plusieurs semaines}, autant que l'administrateur le décide, jusqu'à sa clôture finale.
+  \item \textbf{Aucune élimination} : tout le monde joue jusqu'au bout, quel que soit son résultat.
+  \item \textbf{Classement cumulatif} : les points de chaque semaine s'additionnent ; le classement ne repart jamais à zéro.
+  \item \textbf{Système d'appariement de type suisse} : petit à petit, tu affrontes des joueurs qui ont des résultats proches
+        des tiens, ce qui rend les matchs équilibrés pour les débutants comme pour les confirmés.
+\end{itemize}
+
+\subsection{La semaine type}
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{0.92\linewidth}{>{\bfseries\color{nuit}}l X}
+\toprule
+\rowcolor{orclair!25}Dimanche & Clôture de la semaine précédente (classement figé, récompenses) puis publication du nouveau tirage. Tu reçois une notification. \\
+Lundi    & Ronde 1 \\
+Mercredi & Ronde 2 \\
+Vendredi & Ronde 3 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{aretenir}[Souplesse]
+Les jours (lundi, mercredi, vendredi) sont \textbf{indicatifs}. Tu peux jouer chaque partie \textbf{n'importe quand
+pendant la semaine}, en t'arrangeant avec ton adversaire selon vos cours. Le seul impératif : que les trois résultats
+soient déclarés et confirmés \textbf{avant la clôture du dimanche}.
+\end{aretenir}
+
+\subsection{Comment sont choisis tes adversaires}
+\begin{itemize}
+  \item \textbf{Semaine 1} : tirage au sort.
+  \item \textbf{Ensuite} : les joueurs sont rapprochés selon leurs points au classement général.
+  \item Tu ne rencontres jamais deux fois le même adversaire dans une semaine, et l'application évite autant que possible
+        les adversaires déjà affrontés les semaines précédentes.
+  \item Les \textbf{couleurs} (Blancs / Noirs) sont équilibrées au fil des semaines et imposées par le tirage.
+  \item \textbf{Nombre impair de joueurs} : à chaque ronde, un joueur est \textbf{exempt} (il ne joue pas). Ce n'est jamais
+        le même deux fois dans la semaine, et c'est en priorité celui qui a été le moins souvent exempté.
+        Les points accordés à un exempt (0, 1 ou 3) sont fixés par l'administrateur avant le lancement et rappelés sous le classement.
+\end{itemize}
+Une fois publié, le tirage est \textbf{verrouillé} : il ne change plus pendant la semaine.
+
+% =====================================================================
+\section{Jouer un match}
+% =====================================================================
+\resetetapes
+\etape{Ouvre ton match dans \app{}.}
+Sur l'accueil, la carte \textbf{« Mon prochain match »} t'indique ton adversaire, ta couleur et le jour prévu.
+
+\etape{Annonce la partie dans le groupe.}
+Touche \bouton{Annoncer au groupe} : une image du match est générée, puis tu choisis WhatsApp et le groupe.
+Les autres peuvent ainsi suivre la rencontre.
+
+\etape{Défie ton adversaire sur Chess.com.}
+Le bouton \bouton{Défier} ouvre Chess.com directement sur ton adversaire.
+
+\begin{attention}[Les bonnes conditions de jeu]
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Cadence} : celle choisie par l'administrateur pour le championnat (par défaut \textbf{Rapide}, par exemple
+        10 ou 15 minutes). Elle est indiquée dans l'espace du championnat.
+  \item \textbf{Couleurs} : joue avec \textbf{la couleur indiquée par le tirage}. Si vous inversez les couleurs, la partie
+        ne pourra pas être retenue automatiquement et l'administrateur devra trancher.
+  \item \textbf{Une seule partie officielle} par rencontre. Si vous rejouez pour le plaisir, la partie officielle doit être
+        clairement identifiée (voir section~\ref{sec:cas}).
+  \item Échecs \textbf{classiques} uniquement (pas de variantes comme le Chess960).
+\end{itemize}
+\end{attention}
+
+% =====================================================================
+\section{Déclarer et valider le résultat}
+% =====================================================================
+Un résultat ne compte que lorsqu'il est \textbf{validé par les deux joueurs} (ou, en cas de litige, par l'administrateur).
+
+\subsection{Avec la détection automatique (le plus simple)}
+Après la partie, rouvre le match dans \app{} : l'application recherche votre partie sur Chess.com.
+\begin{itemize}
+  \item Si elle la trouve, elle te propose le résultat (« Partie trouvée : Victoire ») avec le lien de la partie.
+        Touche \bouton{Accepter ce résultat}.
+  \item Ton adversaire reçoit une notification et \textbf{confirme} à son tour. Le résultat devient officiel.
+  \item Si rien n'apparaît encore, touche \bouton{Rechercher} un peu plus tard (une recherche toutes les 2 minutes au plus) :
+        Chess.com peut publier les parties avec du retard, parfois plusieurs heures.
+\end{itemize}
+
+\subsection{Déclaration manuelle (toujours possible)}
+Inutile d'attendre la détection. Dans le match, choisis \bouton{Victoire}, \bouton{Match nul} ou \bouton{Défaite}
+(de ton point de vue), puis \bouton{Confirmer}. Ton adversaire doit ensuite confirmer.
+
+\subsection{Le circuit de validation}
+\begin{center}
+\begin{tikzpicture}[node distance=0.7cm and 1.25cm,
+  st/.style={draw=or,fill=orclair!20,rounded corners=4pt,align=center,font=\small,minimum height=1.05cm,text width=2.35cm},
+  ok/.style={st,draw=vert,fill=vert!12}, ko/.style={st,draw=rouge,fill=rouge!8},
+  >=stealth,thick]
+  \node[st] (a) {\textbf{À jouer}};
+  \node[st,right=of a] (b) {\textbf{En attente}\\{\scriptsize résultat déclaré}};
+  \node[ok,right=of b] (c) {\textbf{Validé}\\{\scriptsize points attribués}};
+  \node[ko,below=of b] (d) {\textbf{Contesté}\\{\scriptsize l'admin arbitre}};
+  \draw[->,color=nuit] (a) -- node[above,font=\scriptsize]{déclaration} (b);
+  \draw[->,color=nuit] (b) -- node[above,font=\scriptsize]{confirmation} (c);
+  \draw[->,color=rouge] (b) -- node[right,font=\scriptsize]{contestation} (d);
+  \draw[->,color=nuit] (d.east) -| node[below,pos=0.25,font=\scriptsize]{décision} (c.south);
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}
+  \item \textbf{Tu as déclaré par erreur ?} Tant que ton adversaire n'a pas répondu, touche \bouton{Retirer ma déclaration}.
+  \item \textbf{Tu n'es pas d'accord avec le résultat déclaré par ton adversaire ?} Touche \bouton{Contester} et explique
+        pourquoi. Le résultat reste en attente jusqu'à la décision de l'administrateur.
+  \item Si la déclaration de ton adversaire ne correspond pas à la partie trouvée sur Chess.com, l'application t'avertit.
+\end{itemize}
+
+\begin{attention}[Avant la clôture du dimanche]
+Un match qui n'a été ni déclaré ni confirmé à la clôture est enregistré \textbf{« non joué »} : \textbf{0 point pour chacun},
+sans vainqueur. Une semaine ne peut pas être clôturée tant qu'un résultat est en attente ou contesté : pense à confirmer
+rapidement les résultats de tes adversaires.
+\end{attention}
+
+% =====================================================================
+\section{Points et classement}
+% =====================================================================
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{l c}
+\toprule
+\textbf{Résultat} & \textbf{Points} \\
+\midrule
+\textcolor{vert}{\faTrophy}\ Victoire & \textbf{3} \\
+\textcolor{violet}{\faHandshake}\ Match nul & \textbf{1} \\
+\textcolor{rouge}{\faTimes}\ Défaite & \textbf{0} \\
+Match non joué & 0 (pour chacun) \\
+Exempt & fixé par l'administrateur (0, 1 ou 3) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textit{Exemple :} deux victoires et un nul dans la semaine $= 3 + 3 + 1 = 7$ points.
+
+\subsection{En cas d'égalité de points}
+Les joueurs sont départagés dans cet ordre :
+\begin{enumerate}[label=\textcolor{or}{\bfseries\arabic*.}]
+  \item le \textbf{nombre de victoires} ;
+  \item le \textbf{Buchholz} : la somme des points des adversaires que tu as affrontés. Battre des adversaires solides compte davantage.
+\end{enumerate}
+Si l'égalité persiste, les joueurs partagent le même rang.
+
+\subsection{Les deux classements}
+\begin{itemize}
+  \item \textbf{Général} : cumul de toutes les semaines. Les flèches \textcolor{vert}{\faArrowUp}\,/\,\textcolor{rouge}{\faArrowDown}
+        indiquent les places gagnées ou perdues depuis la semaine précédente.
+  \item \textbf{Semaine} : les points marqués pendant une semaine donnée (utile pour le titre de Champion de la semaine).
+\end{itemize}
+\begin{aretenir}
+Le classement ne tient compte \textbf{que des résultats validés} dans \app{}. Ton Elo et tes statistiques Chess.com
+\textbf{n'influencent jamais} tes points ni ton classement.
+\end{aretenir}
+
+% =====================================================================
+\section{Récompenses}
+% =====================================================================
+Les récompenses valorisent la participation et la progression, pas seulement les premiers du classement.
+
+\subsection{Distinctions de la semaine}
+Attribuées automatiquement \textbf{à la clôture de chaque semaine} (plusieurs gagnants possibles en cas d'égalité).
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{>{\bfseries}l X}
+\toprule
+\faCrown\ Champion de la semaine & Le meilleur score de la semaine sur les trois rondes. \\
+\faBolt\ Chevalier surprise & La victoire la plus inattendue : contre un joueur classé au moins 3 places au-dessus
+  au moment du tirage (en semaine 1 : contre un joueur ayant au moins 200 points d'Elo de plus). \\
+\faChartLine\ Meilleure progression & La plus forte remontée au classement par rapport à la semaine précédente. \\
+\faFire\ Série gagnante & La plus longue série de victoires en cours (3 minimum). \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Badges}
+Débloqués \textbf{immédiatement}, dès qu'un résultat est validé, et gardés pour toujours.
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{>{\bfseries}l X}
+\toprule
+Premier pas & Disputer sa première partie officielle. \\
+Première victoire & Remporter sa première partie. \\
+Semaine complète & Jouer ses trois matchs dans la même semaine. \\
+Cinq victoires & Atteindre cinq victoires au total. \\
+Trois d'affilée & Enchaîner trois victoires consécutives. \\
+Tombeur du leader & Battre le joueur classé premier (à partir de la semaine 2). \\
+Première remontée & Gagner des places au classement d'une semaine à l'autre. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+Toutes tes récompenses sont visibles dans \bouton{Profil} $\rightarrow$ \textbf{Distinctions}, et celles de tout le monde dans
+la page \textbf{Récompenses}.
+
+% =====================================================================
+\section{L'application, écran par écran}
+% =====================================================================
+La barre en bas de l'écran donne accès aux quatre espaces principaux.
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash\bfseries\color{nuit}}p{3.1cm} X}
+\toprule
+\faHome\ Accueil & La semaine en cours, ta place et tes points, ton évolution, et la carte \textbf{« Mon prochain match »}
+  avec les boutons \bouton{Défier} et \bouton{Déclarer}. Une bannière te signale les résultats à confirmer. \\
+\faChessKnight\ Matchs & \textbf{Semaine} : tes trois matchs, leur couleur, leur jour et leur statut (À jouer, En attente,
+  Validé, Contesté, Non joué). \textbf{Historique} : tous tes résultats. Une pastille dorée sur l'onglet indique qu'une
+  action t'attend. \\
+\faTrophy\ Classement & Classement général et classement de chaque semaine. Touche un joueur pour voir son profil. \\
+\faUser\ Profil & Tes statistiques du championnat, ta progression, tes distinctions, tes derniers matchs, et un encadré
+  séparé \textbf{« Sur Chess.com — hors championnat »} avec ton Elo et ton activité globale sur Chess.com. \\
+\faBell\ Notifications & Nouveau tirage, résultat à confirmer, résultat confirmé ou contesté, partie trouvée sur Chess.com,
+  classement mis à jour, récompense obtenue. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Partager dans le groupe WhatsApp}
+Comme sur Duolingo, l'application prépare pour toi une \textbf{image} et un \textbf{message} prêts à envoyer :
+\begin{itemize}
+  \item l'annonce d'un match ou son résultat (depuis le match) ;
+  \item le classement général ou de la semaine (icône \faShare*\ en haut du classement) ;
+  \item une distinction ou un badge (page Récompenses).
+\end{itemize}
+Touche \bouton{Partager}, choisis \textbf{WhatsApp}, puis le \textbf{groupe de la classe}. Le bouton
+\bouton{Ouvrir le groupe} ouvre directement le groupe.
+
+\begin{astuce}
+Sur certains téléphones, WhatsApp n'envoie que l'image, sans le texte. Touche alors \bouton{Copier le message}
+et colle-le sous l'image avant d'envoyer.
+\end{astuce}
+
+% =====================================================================
+\section{Chess.com et Chess IR}
+% =====================================================================
+\app{} lit uniquement les informations \textbf{publiques} de Chess.com ; il ne modifie jamais rien sur ton compte
+et ne joue pas à ta place.
+\begin{itemize}
+  \item \textbf{Ton profil} : avatar, Elo par cadence et bilan global sont synchronisés au plus une fois par jour
+        (bouton \bouton{Actualiser} dans ton profil).
+  \item \textbf{Ton Elo} affiché dans \app{} est ton Elo Chess.com dans la cadence du championnat (Rapide par défaut).
+        Ton \textbf{Elo initial} est celui enregistré lors de ton inscription au championnat.
+  \item \textbf{Tes parties} : l'application retrouve la partie de chaque match pour te proposer le résultat et
+        te permettre de la revoir sur Chess.com depuis ton historique.
+  \item Les données Chess.com sont présentées à part et \textbf{ne comptent jamais} dans le championnat.
+\end{itemize}
+
+% =====================================================================
+\section{Situations particulières}\label{sec:cas}
+% =====================================================================
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash\bfseries}p{4.2cm} X}
+\toprule
+Mon adversaire ne répond pas & Contacte-le dans le groupe. Si le match ne peut pas avoir lieu, préviens l'administrateur :
+  il peut le déclarer non joué ou prendre une autre décision. Il n'y a \textbf{aucune victoire automatique}. \\
+Déconnexion pendant la partie & Chess.com peut l'enregistrer comme abandon ou perte au temps. Le résultat te sera proposé
+  tel quel, mais rien n'est validé sans confirmation : en cas de désaccord, contestez et l'administrateur tranche. \\
+Plusieurs parties entre nous & L'application ne choisit pas seule : la proposition est « incertaine » et vous indiquez
+  ensemble la bonne partie (bouton \bouton{C'est cette partie}) ou déclarez à la main. \\
+Couleurs inversées & La partie ne peut pas être retenue par les joueurs : déclarez le résultat ou demandez à
+  l'administrateur, qui décidera si elle compte. \\
+Cadence différente & Une partie jouée dans une autre cadence que celle du championnat n'est pas proposée automatiquement. \\
+Partie introuvable & Chess.com peut avoir du retard : réessaie plus tard ou déclare le résultat à la main. \\
+Semaine déjà clôturée & Plus aucune déclaration n'est possible : contacte l'administrateur. \\
+Changer de pseudo Chess.com & Pendant un championnat en cours, seul l'administrateur peut le faire. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% =====================================================================
+\section{Fair-play}
+% =====================================================================
+\begin{itemize}
+  \item \textbf{Aucune aide extérieure} pendant une partie : pas de moteur d'échecs, pas d'analyse, pas de conseils.
+  \item Déclare toujours le \textbf{résultat réel}, même quand tu perds.
+  \item Respecte ton adversaire, dans la partie comme dans le groupe.
+  \item En cas de litige, la décision de l'\textbf{administrateur} est finale. Toutes les déclarations, confirmations,
+        contestations et décisions sont conservées dans l'historique du match.
+\end{itemize}
+
+% =====================================================================
+\section{Le rôle de l'administrateur}
+% =====================================================================
+L'administrateur organise le championnat. Il :
+\begin{itemize}
+  \item inscrit les joueurs, et peut suspendre une participation (le joueur n'est alors plus tiré au sort mais reste au classement) ;
+  \item fixe les règles avant le lancement (points d'exempt, cadence, fuseau horaire) ; elles sont ensuite figées ;
+  \item publie le tirage chaque dimanche et clôture la semaine ;
+  \item arbitre les contestations et corrige exceptionnellement un résultat, toujours avec un motif communiqué aux joueurs ;
+  \item gère le lien du groupe WhatsApp.
+\end{itemize}
+
+% =====================================================================
+\section{Questions fréquentes}
+% =====================================================================
+\begin{description}[style=nextline,leftmargin=0pt,font=\color{nuit}\bfseries]
+  \item[Je n'ai pas de compte Chess.com, puis-je participer ?]
+    Non : toutes les parties se jouent sur Chess.com. Crée un compte gratuit avant de t'inscrire sur \app{}.
+  \item[Je n'ai pas d'Elo sur Chess.com, est-ce grave ?]
+    Pas du tout. L'Elo ne sert qu'à l'affichage et à la distinction Chevalier surprise en semaine 1 ; il ne change rien aux points.
+  \item[Je suis débutant, vais-je affronter les meilleurs ?]
+    Seulement de temps en temps : dès la semaine 2, tu affrontes surtout des joueurs ayant des résultats proches des tiens.
+  \item[Puis-je jouer mes trois matchs le même jour ?]
+    Oui, si ton adversaire est d'accord. Les jours indiqués sont des repères.
+  \item[Mon adversaire a déclaré un mauvais résultat.]
+    Touche \bouton{Contester} et explique la situation : l'administrateur verra aussi la partie Chess.com si elle a été trouvée.
+  \item[Quand mes points apparaissent-ils ?]
+    Dès que le résultat est confirmé par ton adversaire (ou fixé par l'administrateur).
+  \item[L'application a changé d'apparence.]
+    Elle se met à jour automatiquement après chaque amélioration ; il n'y a rien à faire.
+\end{description}
+
+\vfill
+\begin{tcolorbox}[enhanced,colback=nuit,colframe=nuit,arc=3mm,halign=center,fontupper=\color{white}]
+{\Large\bfseries Chess \textcolor{orclair}{IR}}\\[2pt]
+Jouer. Progresser. Grimper.\\[4pt]
+\href{https://chessir.vercel.app}{\textcolor{orclair}{\bfseries chessir.vercel.app}}
+\end{tcolorbox}
+
+\end{document}

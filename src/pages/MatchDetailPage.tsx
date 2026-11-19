@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Clock,
   ScrollText,
+  Share2,
 } from 'lucide-react'
 import { useAuth } from '../state/auth'
 import { useChampionship } from '../state/championship'
@@ -31,6 +32,7 @@ import {
   type Outcome,
 } from '../lib/format'
 import { ChesscomMatchBlock, DeclarationMismatch } from '../components/chesscom'
+import { useShareActions } from '../hooks/useShareActions'
 import { Avatar, EmptyState, ErrorBox, PageHeader, PageLoader, PieceColor, Spinner, StatusBadge, cx, useToast } from '../components/ui'
 
 const OPTIONS: Array<{ value: Outcome; title: string; sub: string; icon: typeof Trophy; style: string }> = [
@@ -50,6 +52,7 @@ export default function MatchDetailPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast, toastNode } = useToast()
+  const shareActions = useShareActions()
 
   const match = matches.find((m) => m.id === id)
 
@@ -96,21 +99,7 @@ export default function MatchDetailPage() {
     }
   }
 
-  async function announce() {
-    const text =
-      `♟️ Chess IR — Semaine ${week.number}, ronde ${round.number}\n` +
-      `${nameOf(match!.white_id)} (Blancs) vs ${nameOf(match!.black_id)} (Noirs)\n` +
-      `La partie commence sur Chess.com !`
-    try {
-      if (navigator.share) await navigator.share({ text })
-      else {
-        await navigator.clipboard.writeText(text)
-        toast('Annonce copiée : collez-la dans le groupe')
-      }
-    } catch {
-      /* partage annulé */
-    }
-  }
+  const announce = () => shareActions.match(match)
 
   const resultText = (r: MatchResult) =>
     myColor ? OUTCOME_LABEL[outcomeFor(r, myColor)] + ' (pour vous)' : r === 'draw' ? 'Match nul' : `Victoire de ${nameOf(r === 'white_win' ? match.white_id : match.black_id)}`
@@ -148,20 +137,38 @@ export default function MatchDetailPage() {
                 href={chessComChallenge(opponent.chesscom_username)}
                 target="_blank"
                 rel="noreferrer"
-                className="btn-ghost text-[15px]"
+                className="btn-ghost whitespace-nowrap px-3 text-[14px]"
               >
-                <ExternalLink size={17} /> Défier sur Chess.com
+                <ExternalLink size={16} /> Défier sur Chess.com
               </a>
             ) : (
               <span className="btn-ghost pointer-events-none text-[13px] opacity-60">Pseudo Chess.com manquant</span>
             )}
-            <button onClick={announce} className="btn-ghost text-[15px]">
-              <Megaphone size={17} /> Annoncer
+            <button onClick={announce} className="btn-ghost whitespace-nowrap px-3 text-[14px]">
+              <Megaphone size={16} /> Annoncer au groupe
             </button>
           </div>
         )}
 
         <ErrorBox>{error}</ErrorBox>
+
+        {match.status === 'validated' && match.result && (
+          <div className="card flex items-center gap-3 border-win/30 px-4 py-4">
+            <Trophy size={26} className="text-gold-400" />
+            <div>
+              <p className="font-display text-[19px] font-semibold">{resultText(match.result)}</p>
+              <p className="text-[13px] text-muted">Résultat officiel, intégré au classement.</p>
+            </div>
+            <button
+              onClick={announce}
+              className="ml-auto grid size-10 shrink-0 place-items-center rounded-xl bg-white/5 text-gold-300 hover:bg-white/10"
+              aria-label="Partager le résultat"
+              title="Partager le résultat"
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
+        )}
 
         {/* Partie Chess.com : détection, proposition, partie liée */}
         <ChesscomMatchBlock match={match} myColor={myColor} weekOpen={weekOpen} />
@@ -290,16 +297,6 @@ export default function MatchDetailPage() {
           <div className="card flex items-start gap-3 border-loss/40 px-4 py-3.5 text-[14px]">
             <AlertTriangle size={20} className="mt-0.5 shrink-0 text-loss" />
             <p>Résultat contesté. L'administrateur va examiner la situation et arbitrer.</p>
-          </div>
-        )}
-
-        {match.status === 'validated' && match.result && (
-          <div className="card flex items-center gap-3 border-win/30 px-4 py-4">
-            <Trophy size={26} className="text-gold-400" />
-            <div>
-              <p className="font-display text-[19px] font-semibold">{resultText(match.result)}</p>
-              <p className="text-[13px] text-muted">Résultat officiel, intégré au classement.</p>
-            </div>
           </div>
         )}
 

@@ -61,16 +61,21 @@ export default function AdminMatches() {
           {filtered.map((v) => (
             <li key={v.match.id}>
               <Link to={`/admin/matchs/${v.match.id}`} className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-white/[0.03]">
-                <span className="w-24 shrink-0 text-[12px] text-faint">
+                <span className="w-[4.5rem] shrink-0 text-[12px] text-faint">
                   S{v.week.number} · R{v.round.number}
                   <br />
                   {dayShort(v.round.play_date)} {ddmm(v.round.play_date)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[14px]">
-                  <span className={cx(v.match.result === 'white_win' && 'font-semibold text-win')}>{nameOf(v.match.white_id)}</span>
-                  <span className="text-faint"> – </span>
-                  <span className={cx(v.match.result === 'black_win' && 'font-semibold text-win')}>{nameOf(v.match.black_id)}</span>
-                  {v.match.result === 'draw' && <span className="text-draw"> (nul)</span>}
+                <span className="min-w-0 flex-1 text-[14px] leading-snug">
+                  <span className={cx('block truncate', v.match.result === 'white_win' && 'font-semibold text-win')}>
+                    <span className="mr-1.5 inline-block size-2 rounded-full border border-white/60 bg-white align-middle" />
+                    {nameOf(v.match.white_id)}
+                  </span>
+                  <span className={cx('block truncate', v.match.result === 'black_win' && 'font-semibold text-win')}>
+                    <span className="mr-1.5 inline-block size-2 rounded-full border border-white/40 bg-black align-middle" />
+                    {nameOf(v.match.black_id)}
+                    {v.match.result === 'draw' && <span className="text-draw"> · nul</span>}
+                  </span>
                 </span>
                 <StatusBadge status={v.match.status} />
                 <ChevronRight size={16} className="text-faint" />

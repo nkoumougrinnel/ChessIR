@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Rocket } from 'lucide-react'
+import { Rocket, Share2 } from 'lucide-react'
+import { useShareActions } from '../hooks/useShareActions'
 import { useChampionship } from '../state/championship'
 import { AchievementBadge, achievementIcon, usePlayerAchievements } from '../components/achievements'
 import { Avatar, PageHeader, PageLoader } from '../components/ui'
@@ -8,6 +9,7 @@ import { weekLabel } from '../lib/format'
 export default function AwardsPage() {
   const { loading, me, tournament, achievements, weekById, weeks, nameOf, profileOf, avatarOf } = useChampionship()
   const all = usePlayerAchievements({ tournamentId: tournament?.id })
+  const shareActions = useShareActions()
 
   if (loading || all === null) return <PageLoader />
 
@@ -15,7 +17,9 @@ export default function AwardsPage() {
   const mine = all.filter((a) => a.participant_id === me?.id)
   const myCounts = new Map<string, number>()
   for (const a of mine) myCounts.set(a.achievement_id, (myCounts.get(a.achievement_id) ?? 0) + 1)
-  const latestDistinction = mine.find((a) => byId.get(a.achievement_id)?.kind === 'distinction')
+  const latestDistinction = mine
+    .filter((a) => byId.get(a.achievement_id)?.kind === 'distinction')
+    .sort((x, y) => (weekById.get(y.week_id ?? '')?.number ?? 0) - (weekById.get(x.week_id ?? '')?.number ?? 0))[0]
   const hero = latestDistinction ? byId.get(latestDistinction.achievement_id) : null
   const HeroIcon = hero ? achievementIcon(hero.icon) : null
 
@@ -52,9 +56,15 @@ export default function AwardsPage() {
             <h2 className="relative mt-3 font-display text-[26px] font-bold">{hero.name}</h2>
             <p className="relative text-[14px] text-[#8fa8ff]">
               {latestDistinction?.week_id && weekById.get(latestDistinction.week_id)
-                ? weekLabel(weekById.get(latestDistinction.week_id)!.number)
+                ? `${hero.description} · ${weekLabel(weekById.get(latestDistinction.week_id)!.number)}`
                 : hero.description}
             </p>
+            <button
+              className="btn-gold relative mt-4 px-5 py-2.5 text-[15px]"
+              onClick={() => shareActions.award(hero, latestDistinction!.participant_id, latestDistinction!.week_id)}
+            >
+              <Share2 size={17} /> Partager
+            </button>
           </div>
         )}
 
@@ -90,13 +100,20 @@ export default function AwardsPage() {
                       const Icon = achievementIcon(a.icon)
                       const p = profileOf(pa.participant_id)
                       return (
-                        <li key={pa.id}>
-                          <Link to={`/joueurs/${pa.participant_id}`} className="flex items-center gap-3">
+                        <li key={pa.id} className="flex items-center">
+                          <Link to={`/joueurs/${pa.participant_id}`} className="flex min-w-0 flex-1 items-center gap-3">
                             <Icon size={20} className="shrink-0 text-gold-400" />
                             <span className="flex-1 text-[14px] text-muted">{a.name}</span>
                             <Avatar name={p?.display_name ?? '?'} color={p?.avatar_color} size={24} src={avatarOf(p?.id)} />
                             <span className="max-w-[40%] truncate font-medium">{nameOf(pa.participant_id)}</span>
                           </Link>
+                          <button
+                            onClick={() => shareActions.award(a, pa.participant_id, pa.week_id)}
+                            className="ml-1 grid size-8 shrink-0 place-items-center rounded-lg text-faint hover:bg-white/5 hover:text-gold-300"
+                            aria-label={`Partager : ${a.name}`}
+                          >
+                            <Share2 size={15} />
+                          </button>
                         </li>
                       )
                     })}

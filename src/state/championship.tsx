@@ -35,6 +35,8 @@ export interface ChampionshipData {
   /** Données publiques Chess.com, séparées des statistiques du championnat. */
   chesscomProfiles: Map<string, ChesscomProfile>
   chesscomGames: ChesscomGame[]
+  /** Lien d'invitation du groupe WhatsApp (réglage admin), ou null. */
+  whatsappUrl: string | null
 }
 
 interface ChampionshipState extends ChampionshipData {
@@ -67,6 +69,7 @@ const empty: ChampionshipData = {
   unread: 0,
   chesscomProfiles: new Map(),
   chesscomGames: [],
+  whatsappUrl: null,
 }
 
 const Ctx = createContext<ChampionshipState | null>(null)
@@ -81,12 +84,13 @@ export function ChampionshipProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     if (!session) return
     try {
-      const [tournament, profiles, achievements, notifications, ccProfiles] = await Promise.all([
+      const [tournament, profiles, achievements, notifications, ccProfiles, settings] = await Promise.all([
         api.fetchCurrentTournament(),
         api.fetchProfiles(),
         api.fetchAchievements(),
         api.fetchNotifications(),
         api.fetchChesscomProfiles(),
+        api.fetchSettings().catch(() => ({}) as Record<string, string | null>),
       ])
       const base = {
         tournament,
@@ -94,6 +98,7 @@ export function ChampionshipProvider({ children }: { children: ReactNode }) {
         achievements,
         unread: notifications.filter((n) => !n.read_at).length,
         chesscomProfiles: new Map(ccProfiles.map((c) => [c.profile_id, c])),
+        whatsappUrl: settings.whatsapp_group_url ?? null,
       }
       if (!tournament) {
         setData({ ...empty, ...base })

@@ -1,15 +1,25 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { BadgeCheck, BarChart3, Pencil, Plus, RefreshCw, Search, UserCheck, UserMinus, X, XCircle } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { BadgeCheck, BarChart3, Pencil, Plus, UserPlus, RefreshCw, Search, UserCheck, UserMinus, X, XCircle } from 'lucide-react'
 import { useChampionship } from '../state/championship'
 import { admin, chesscom } from '../lib/api'
 import type { Participant, Profile } from '../lib/types'
 import { Avatar, ErrorBox, PageLoader, Spinner, cx } from '../components/ui'
 import { friendlyError } from '../lib/supabase'
 
+type Filter = 'tous' | 'inscrits' | 'a-inscrire' | 'suspendus'
+const FILTERS: Array<{ value: Filter; label: string }> = [
+  { value: 'tous', label: 'Tous' },
+  { value: 'inscrits', label: 'Inscrits' },
+  { value: 'a-inscrire', label: 'À inscrire' },
+  { value: 'suspendus', label: 'Suspendus' },
+]
+
 export default function AdminPlayers() {
   const { loading, tournament, profiles, participants, standings, reload, avatarOf, chesscomProfiles } = useChampionship()
   const [q, setQ] = useState('')
+  const [params, setParams] = useSearchParams()
+  const filter = (params.get('filtre') as Filter | null) ?? 'tous'
   const [editing, setEditing] = useState<Profile | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -17,7 +27,17 @@ export default function AdminPlayers() {
   if (loading) return <PageLoader />
 
   const byProfile = new Map(participants.map((p) => [p.profile_id, p]))
-  const list = [...profiles.values()]
+  const all = [...profiles.values()]
+  const isToEnroll = (p: Profile) => p.role !== 'admin' && p.is_active && !byProfile.has(p.id)
+  const matchesFilter: Record<Filter, (p: Profile) => boolean> = {
+    tous: () => true,
+    inscrits: (p) => byProfile.get(p.id)?.status === 'active',
+    'a-inscrire': isToEnroll,
+    suspendus: (p) => byProfile.get(p.id)?.status === 'suspended' || !p.is_active,
+  }
+  const toEnroll = all.filter(isToEnroll)
+  const list = all
+    .filter(matchesFilter[filter])
     .filter((p) => p.display_name.toLowerCase().includes(q.toLowerCase()) || p.chesscom_username?.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => Number(byProfile.has(b.id)) - Number(byProfile.has(a.id)) || a.display_name.localeCompare(b.display_name, 'fr'))
 
@@ -39,17 +59,60 @@ export default function AdminPlayers() {
   return (
     <div className="space-y-3">
       <p className="text-[13px] text-muted">
-        Les joueurs créent leur compte depuis l'écran d'inscription, puis vous les ajoutez au championnat. Un participant
-        suspendu n'est plus inclus dans les tirages mais reste au classement.
+        Chaque joueur crée son compte dans l'application, puis vous l'inscrivez au championnat. Un participant suspendu
+        n'est plus tiré au sort mais reste au classement.
       </p>
+
+      {canEnroll && toEnroll.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-3 border-gold-400/30 px-4 py-3">
+          <UserPlus size={20} className="text-gold-300" />
+          <p className="min-w-0 flex-1 text-[14px]">
+            <strong>{toEnroll.length}</strong> compte{toEnroll.length > 1 ? 's' : ''} en attente d'inscription
+          </p>
+          <button
+            className="btn-gold px-3 py-2 text-[14px]"
+            disabled={busy === 'all'}
+            onClick={() => {
+              if (!window.confirm(`Inscrire ${toEnroll.length} joueur(s) au championnat « ${tournament!.name} » ?`)) return
+              void run('all', async () => {
+                for (const p of toEnroll) await admin.addParticipant(tournament!.id, p.id)
+              })
+            }}
+          >
+            {busy === 'all' ? <Spinner className="text-night-950" /> : <Plus size={16} />} Tout inscrire
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        {FILTERS.map((f) => {
+          const count = all.filter(matchesFilter[f.value]).length
+          return (
+            <button
+              key={f.value}
+              onClick={() => {
+                const next = new URLSearchParams(params)
+                if (f.value === 'tous') next.delete('filtre')
+                else next.set('filtre', f.value)
+                setParams(next, { replace: true })
+              }}
+              className={cx(
+                'rounded-full px-3 py-1 text-[13px] font-medium',
+                filter === f.value ? 'bg-gold-400 text-night-950' : 'bg-white/5 text-muted hover:text-ink',
+              )}
+            >
+              {f.label} ({count})
+            </button>
+          )
+        })}
+      </div>
+
       <div className="relative">
         <Search size={18} className="absolute top-1/2 left-3.5 -translate-y-1/2 text-faint" />
         <input className="input pl-10" placeholder="Rechercher un joueur" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <ErrorBox>{error}</ErrorBox>
-      <p className="text-[12px] text-faint">
-        {participants.filter((p) => p.status === 'active').length} participant(s) actif(s) · {profiles.size} compte(s)
-      </p>
+      {list.length === 0 && <p className="card px-4 py-5 text-center text-[14px] text-muted">Aucun joueur dans cette liste.</p>}
 
       <ul className="space-y-2">
         {list.map((p) => {
@@ -58,7 +121,7 @@ export default function AdminPlayers() {
           return (
             <li key={p.id} className={cx('card flex flex-wrap items-center gap-3 px-3.5 py-3', !p.is_active && 'opacity-60')}>
               <Avatar name={p.display_name} color={p.avatar_color} size={38} src={avatarOf(p.id)} />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
                 <p className="truncate font-medium">
                   {p.display_name}
                   {p.role === 'admin' && <span className="ml-2 text-[11px] text-gold-400">admin</span>}
@@ -71,7 +134,7 @@ export default function AdminPlayers() {
                   {st && ` · ${st.points} pts (#${st.rank}) · ${st.wins}V ${st.draws}N ${st.losses}D`}
                 </p>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex w-full items-center justify-end gap-1.5 sm:w-auto">
                 {part && (
                   <Link to={`/joueurs/${part.id}`} className="grid size-9 place-items-center rounded-lg bg-white/5 hover:bg-white/10" title="Statistiques">
                     <BarChart3 size={16} />

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Crown, Trophy, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Crown, Trophy, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Share2 } from 'lucide-react'
+import { useShareActions } from '../hooks/useShareActions'
 import { useChampionship } from '../state/championship'
-import { fetchWeekStandings } from '../lib/api'
+import { fetchWeekSnapshots, fetchWeekStandings } from '../lib/api'
 import type { StandingRow } from '../lib/types'
 import { Avatar, EmptyState, PageHeader, PageLoader, Segmented, Spinner, cx } from '../components/ui'
 import { pad2, weekRange } from '../lib/format'
@@ -10,9 +11,22 @@ import { pad2, weekRange } from '../lib/format'
 export default function StandingsPage() {
   const { loading, standings, weeks, me, activeWeek, tournament } = useChampionship()
   const [tab, setTab] = useState<'general' | 'week'>('general')
+  const shareActions = useShareActions()
   const [weekIdx, setWeekIdx] = useState(0) // index dans `weeks` (0 = plus récente)
   const [weekRows, setWeekRows] = useState<StandingRow[] | null>(null)
   const week = weeks[weekIdx] ?? null
+
+  // Évolution des places : classement actuel comparé à la dernière semaine clôturée
+  // (ou à l'avant-dernière s'il n'y a pas de semaine en cours).
+  const closed = weeks.filter((w) => w.status === 'closed')
+  const refWeek = activeWeek ? closed[0] : closed[1]
+  const [prevRank, setPrevRank] = useState<Map<string, number>>(new Map())
+  useEffect(() => {
+    if (!refWeek) return setPrevRank(new Map())
+    fetchWeekSnapshots(refWeek.id)
+      .then((s) => setPrevRank(new Map(s.map((x) => [x.participant_id, x.rank]))))
+      .catch(() => setPrevRank(new Map()))
+  }, [refWeek?.id])
 
   useEffect(() => {
     if (tab !== 'week' || !week) return
@@ -26,7 +40,21 @@ export default function StandingsPage() {
 
   return (
     <>
-      <PageHeader title="Classement" icon={Trophy} />
+      <PageHeader
+        title="Classement"
+        icon={Trophy}
+        right={
+          rows.length > 0 ? (
+            <button
+              onClick={() => shareActions.standings(rows, { week: tab === 'week' ? (week ?? undefined) : undefined, myId: me?.id })}
+              className="grid size-10 place-items-center rounded-full text-gold-300 hover:bg-white/5"
+              aria-label="Partager le classement"
+            >
+              <Share2 size={20} />
+            </button>
+          ) : undefined
+        }
+      />
       <Segmented
         value={tab}
         onChange={setTab}
@@ -69,7 +97,7 @@ export default function StandingsPage() {
           {tab === 'week' ? 'Aucune semaine jouée pour le moment.' : 'Aucun participant inscrit pour le moment.'}
         </EmptyState>
       ) : (
-        <Table rows={rows} myId={me?.id} />
+        <Table rows={rows} myId={me?.id} prevRank={tab === 'general' ? prevRank : undefined} />
       )}
       <p className="mt-3 text-center text-[11px] leading-relaxed text-faint">
         Victoire 3 pts · Nul 1 pt · Défaite 0 pt · Exempt {tournament?.bye_points ?? 0} pt. Égalité départagée par le nombre de victoires
@@ -79,7 +107,7 @@ export default function StandingsPage() {
   )
 }
 
-function Table({ rows, myId }: { rows: StandingRow[]; myId?: string }) {
+function Table({ rows, myId, prevRank }: { rows: StandingRow[]; myId?: string; prevRank?: Map<string, number> }) {
   const { avatarOf } = useChampionship()
   const leaderPoints = useMemo(() => rows[0]?.points ?? 0, [rows])
   return (
@@ -109,13 +137,14 @@ function Table({ rows, myId }: { rows: StandingRow[]; myId?: string }) {
                   {r.rank}
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="hidden min-[400px]:block"><Avatar name={r.display_name} color={r.avatar_color} size={26} src={avatarOf(r.profile_id)} /></span>
+                  <span className="hidden min-[360px]:block"><Avatar name={r.display_name} color={r.avatar_color} size={26} src={avatarOf(r.profile_id)} /></span>
                   <span className={cx('truncate font-medium', r.participant_status === 'suspended' && 'text-faint line-through')}>
                     {r.display_name}
                   </span>
                   {r.rank === 1 && r.points > 0 && r.points === leaderPoints && (
                     <Crown size={15} className="shrink-0 text-gold-400" aria-label="Leader" />
                   )}
+                  <RankMove before={prevRank?.get(r.participant_id)} now={r.rank} />
                 </span>
                 <span className="text-center text-muted">{r.played}</span>
                 <span className="text-center text-win">{r.wins}</span>
@@ -128,5 +157,19 @@ function Table({ rows, myId }: { rows: StandingRow[]; myId?: string }) {
         })}
       </ol>
     </div>
+  )
+}
+
+function RankMove({ before, now }: { before?: number; now: number }) {
+  if (!before || before === now) return null
+  const up = before > now
+  return (
+    <span
+      className={cx('inline-flex shrink-0 items-center text-[11px] font-semibold', up ? 'text-win' : 'text-loss')}
+      title={up ? `Gagne ${before - now} place(s) depuis la semaine dernière` : `Perd ${now - before} place(s)`}
+    >
+      {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+      {Math.abs(before - now)}
+    </span>
   )
 }

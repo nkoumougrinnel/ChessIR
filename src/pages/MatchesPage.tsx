@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { History, Info, Swords } from 'lucide-react'
 import { useAuth } from '../state/auth'
 import { useChampionship } from '../state/championship'
@@ -10,7 +11,8 @@ import { pad2, weekRange } from '../lib/format'
 export default function MatchesPage() {
   const { profile } = useAuth()
   const { loading, me, activeWeek, weeks } = useChampionship()
-  const [tab, setTab] = useState<'week' | 'history'>('week')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<'week' | 'history'>(params.get('vue') === 'historique' ? 'history' : 'week')
   const games = useGamesOf(me?.id, profile?.id)
   const week = activeWeek ?? weeks[0] ?? null
   const byes = useByesOf(me?.id, week?.id)

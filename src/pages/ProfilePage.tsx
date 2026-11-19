@@ -9,6 +9,7 @@ import { AchievementBadge, usePlayerAchievements } from '../components/achieveme
 import { Avatar, EmptyState, PageHeader, PageLoader, Stat } from '../components/ui'
 import { chessComProfile } from '../lib/format'
 import { ChesscomStatsCard } from '../components/chesscom'
+import { InstallCard } from '../components/InstallCard'
 
 export default function ProfilePage() {
   const { participantId } = useParams()
@@ -108,6 +109,9 @@ export default function ProfilePage() {
               </section>
             )}
 
+            {/* Statistiques Chess.com : bloc séparé, hors championnat */}
+            <ChesscomStatsCard profileId={profile.id} isMine={isMine} />
+
             <section className="animate-rise [animation-delay:180ms]">
               <Link to={isMine ? '/profil/recompenses' : '/recompenses'} className="mb-2.5 flex items-center justify-between">
                 <h3 className="section-title">Distinctions</h3>
@@ -133,7 +137,19 @@ export default function ProfilePage() {
               {games.length === 0 ? (
                 <EmptyState icon={History} title="Aucun match pour l'instant" />
               ) : (
-                games.map((g) => <HistoryRow key={g.match.id} game={g} />)
+                <>
+                  {games.slice(0, 5).map((g) => (
+                    <HistoryRow key={g.match.id} game={g} />
+                  ))}
+                  {games.length > 5 && (
+                    <Link
+                      to={isMine ? '/matchs?vue=historique' : `/joueurs/${participant.id}/historique`}
+                      className="flex items-center justify-center gap-1 py-2 text-[14px] text-gold-300 hover:underline"
+                    >
+                      Voir tout l'historique ({games.length} matchs) <ChevronRight size={16} />
+                    </Link>
+                  )}
+                </>
               )}
             </section>
           </>
@@ -142,12 +158,11 @@ export default function ProfilePage() {
             {isMine ? "Vous n'êtes pas encore inscrit au championnat." : "Ce joueur n'est pas inscrit au championnat."}
           </p>
         )}
-
-        {/* Statistiques Chess.com : bloc séparé, hors championnat */}
-        <ChesscomStatsCard profileId={profile.id} isMine={isMine} />
+        {!(participant && live) && <ChesscomStatsCard profileId={profile.id} isMine={isMine} />}
 
         {isMine && (
           <div className="space-y-2.5 pt-2">
+            <InstallCard />
             {myProfile?.role === 'admin' && (
               <Link to="/admin" className="btn-ghost w-full">
                 <Shield size={18} /> Espace administrateur

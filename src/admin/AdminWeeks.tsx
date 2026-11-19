@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Coffee, Lock, RefreshCw, Send, ChevronDown, Sparkles } from 'lucide-react'
+import { AlertTriangle, Coffee, Lock, RefreshCw, Send, ChevronDown, Sparkles, Share2 } from 'lucide-react'
+import { useShareActions } from '../hooks/useShareActions'
 import { useChampionship, useMatchViews } from '../state/championship'
 import { admin, chesscom } from '../lib/api'
 import { generateWeekDraw, type WeekDraw } from '../lib/pairing'
 import type { Week } from '../lib/types'
 import { ErrorBox, PageLoader, PieceColor, Spinner, StatusBadge, cx } from '../components/ui'
 import { AdminCard } from './AdminLayout'
-import { dayName, ddmm, nextMonday, parseDay, toIsoDay, weekLabel, weekRange } from '../lib/format'
+import { dayName, ddmm, nextMonday, parseDay, toIsoDay, weekLabel, weekRange, STATUS_LABEL } from '../lib/format'
 import type { MatchStatus } from '../lib/types'
 
 export default function AdminWeeks() {
@@ -31,7 +32,8 @@ export default function AdminWeeks() {
 /* --------------------------- Semaine en cours --------------------------- */
 
 function ActiveWeek({ week }: { week: Week }) {
-  const { reload, chesscomGames, nameOf } = useChampionship()
+  const { reload, chesscomGames, nameOf, standings } = useChampionship()
+  const shareActions = useShareActions()
   const [syncing, setSyncing] = useState(false)
   const [syncInfo, setSyncInfo] = useState<string | null>(null)
   const views = useMatchViews().filter((v) => v.week.id === week.id)
@@ -84,17 +86,23 @@ function ActiveWeek({ week }: { week: Week }) {
   return (
     <AdminCard title={`${weekLabel(week.number)} · en cours`}>
       <p className="mb-3 text-[13px] text-muted">{weekRange(week.start_date)} · tirage publié et verrouillé.</p>
-      <div className="mb-4 grid grid-cols-5 gap-2 text-center text-[12px]">
+      <div className="mb-4 grid grid-cols-5 gap-1.5 text-center">
         {(['scheduled', 'pending', 'validated', 'disputed', 'unplayed'] as MatchStatus[]).map((s) => (
           <div key={s} className="rounded-xl bg-white/[0.03] px-1 py-2">
-            <p className="font-display text-[20px] font-bold">{count(s)}</p>
-            <StatusBadge status={s} className="mt-1 px-1.5 text-[10px]" />
+            <p className="font-display text-[20px] leading-none font-bold">{count(s)}</p>
+            <p className={cx('mt-1 truncate text-[10px] font-semibold', STATUS_TONE[s])}>{STATUS_LABEL[s]}</p>
           </div>
         ))}
       </div>
       <RoundsTable weekId={week.id} />
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button className="btn-gold px-3 py-2 text-[14px]" onClick={() => shareActions.draw(week)}>
+          <Share2 size={15} /> Partager le tirage
+        </button>
+        <button className="btn-ghost px-3 py-2 text-[14px]" onClick={() => shareActions.standings(standings, {})}>
+          <Share2 size={15} /> Classement
+        </button>
         <button className="btn-ghost px-3 py-2 text-[14px]" disabled={syncing} onClick={() => void syncWeek()}>
           {syncing ? <Spinner /> : <RefreshCw size={15} />} Synchroniser la semaine avec Chess.com
         </button>
@@ -336,6 +344,14 @@ function RoundsTable({ weekId }: { weekId: string }) {
         })}
     </div>
   )
+}
+
+const STATUS_TONE: Record<MatchStatus, string> = {
+  scheduled: 'text-gold-300',
+  pending: 'text-[#b3a9ff]',
+  validated: 'text-win',
+  disputed: 'text-loss',
+  unplayed: 'text-muted',
 }
 
 function addDays(iso: string, n: number) {

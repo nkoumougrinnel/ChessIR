@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { supabase, friendlyError } from '../lib/supabase'
 import { useAuth } from '../state/auth'
 import { ErrorBox, Segmented, Spinner } from '../components/ui'
+import { Eye, EyeOff } from 'lucide-react'
 import { Brand } from '../components/Layout'
 import logo from '../assets/logo.png'
 
@@ -12,6 +13,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState('')
   const [chess, setChess] = useState('')
   const [busy, setBusy] = useState(false)
@@ -139,16 +141,27 @@ export default function AuthPage() {
             <label className="label" htmlFor="password">
               Mot de passe
             </label>
-            <input
-              id="password"
-              type="password"
-              className="input"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                className="input pr-12"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-0 grid w-12 place-items-center text-faint hover:text-ink"
+                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {mode === 'signup' && <p className="mt-1 text-[12px] text-faint">6 caractères minimum.</p>}
           </div>
 
           <ErrorBox>{error}</ErrorBox>
