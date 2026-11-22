@@ -5,8 +5,9 @@
  * - Pages : réseau d'abord, page en cache si hors ligne.
  * - Données (Supabase, Chess.com, polices externes) : JAMAIS mises en cache,
  *   pour que classements et résultats soient toujours à jour.
+ * - Notifications push : affichage, vibration, et ouverture de la bonne page au toucher.
  */
-const VERSION = 'chessir-v3'
+const VERSION = 'chessir-v4'
 const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.png']
 
 self.addEventListener('install', (event) => {
@@ -56,6 +57,50 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => cached)
       return cached || network
+    }),
+  )
+})
+
+/* ------------------------------------------------------------------ */
+/* Notifications push                                                  */
+/* ------------------------------------------------------------------ */
+
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { title: 'Chess IR', body: event.data ? event.data.text() : '' }
+  }
+  const urgent = data.type === 'challenge' || data.type === 'live'
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Chess IR', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      // Une notification par défi / direct : la suivante remplace la précédente au lieu de s'empiler.
+      tag: data.type === 'challenge' || data.type === 'live' ? `${data.type}-${data.link}` : data.id,
+      renotify: urgent,
+      requireInteraction: data.type === 'challenge',
+      vibrate: urgent ? [200, 100, 200, 100, 300] : [150],
+      data: { link: data.link || '/' },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const link = (event.notification.data && event.notification.data.link) || '/'
+  const target = new URL(link, self.location.origin).href
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      // L'application est déjà ouverte : on la ramène au premier plan sur la bonne page.
+      for (const w of wins) {
+        if (new URL(w.url).origin === self.location.origin && 'focus' in w) {
+          return w.focus().then((c) => (c && 'navigate' in c ? c.navigate(target) : c))
+        }
+      }
+      return self.clients.openWindow(target)
     }),
   )
 })

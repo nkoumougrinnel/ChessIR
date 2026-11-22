@@ -225,3 +225,16 @@ export interface ChesscomGame {
   accuracies: { white?: number; black?: number } | null
   detected_at: string
 }
+
+/** Défi en deux temps (voir migration 20261122000008_challenges.sql). */
+export interface MatchChallenge {
+  id: string
+  match_id: string
+  challenger_id: string
+  created_at: string
+  expires_at: string
+  accepted_at: string | null
+  live_until: string | null
+  ended_at: string | null
+  end_reason: 'expired' | 'cancelled' | 'declared' | 'detected' | null
+}

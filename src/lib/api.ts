@@ -18,7 +18,7 @@ import type {
   WeekStandingRow,
 } from './types'
 import type { WeekDraw } from './pairing'
-import type { ChesscomGame, ChesscomProfile } from './types'
+import type { ChesscomGame, ChesscomProfile, MatchChallenge } from './types'
 
 /* ----------------------------- Lectures ----------------------------- */
 
@@ -257,4 +257,20 @@ export async function chesscom<T = Record<string, unknown>>(body: Record<string,
     throw new Error('Service Chess.com indisponible, réessayez plus tard.')
   }
   return data as T
+}
+
+/* ------------------------------ Défis ------------------------------- */
+
+/** Défis des dernières 24 h (ouverts ou terminés) : l'état exact se déduit des horodatages. */
+export async function fetchRecentChallenges(): Promise<MatchChallenge[]> {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  return unwrap(await supabase.from('match_challenges').select('*').gte('created_at', since).order('created_at', { ascending: false }))
+}
+
+export async function challengeMatch(matchId: string) {
+  return unwrap(await supabase.rpc('challenge_match', { p_match: matchId })) as { state: 'pending' | 'live' }
+}
+
+export async function cancelChallenge(matchId: string) {
+  unwrap(await supabase.rpc('cancel_challenge', { p_match: matchId }))
 }

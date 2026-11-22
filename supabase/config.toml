@@ -418,3 +418,6 @@ enabled = true
 # La fonction authentifie elle-même l’appelant (auth.getUser) : compatible avec les nouvelles clés de signature.
 [functions.chesscom-sync]
 verify_jwt = false
+
+[functions.push-send]
+verify_jwt = false

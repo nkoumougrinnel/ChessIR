@@ -9,6 +9,7 @@ import { Avatar, EmptyState, PageLoader, StatusBadge, cx } from '../components/u
 import { ProgressChart } from '../components/ProgressChart'
 import { InstallCard } from '../components/InstallCard'
 import { NextMatchCard } from '../components/NextMatchCard'
+import { PushCard } from '../components/PushCard'
 import { dayShort, ddmm, weekLabel, weekRange, OUTCOME_LABEL } from '../lib/format'
 
 export default function HomePage() {
@@ -152,6 +153,7 @@ export default function HomePage() {
 
               {/* Action principale : le prochain match à jouer */}
               <NextMatchCard games={weekGames} weekOpen={!!activeWeek} />
+              <PushCard placement="home" />
 
               {/* Matchs de la semaine */}
               <section className="animate-rise [animation-delay:180ms]">

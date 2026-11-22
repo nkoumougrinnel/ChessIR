@@ -20,7 +20,6 @@ import { useChampionship } from '../state/championship'
 import * as api from '../lib/api'
 import type { MatchLog, MatchResult } from '../lib/types'
 import {
-  chessComChallenge,
   chessComProfile,
   dayName,
   ddmm,
@@ -32,6 +31,7 @@ import {
   type Outcome,
 } from '../lib/format'
 import { ChesscomMatchBlock, DeclarationMismatch } from '../components/chesscom'
+import { ChallengeButton, ChallengeStatus } from '../components/challenge'
 import { useShareActions } from '../hooks/useShareActions'
 import { Avatar, EmptyState, ErrorBox, PageHeader, PageLoader, PieceColor, Spinner, StatusBadge, cx, useToast } from '../components/ui'
 
@@ -132,21 +132,17 @@ export default function MatchDetailPage() {
         {/* Raccourcis Chess.com */}
         {myColor && match.status === 'scheduled' && (
           <div className="grid grid-cols-2 gap-3">
-            {opponent?.chesscom_username ? (
-              <a
-                href={chessComChallenge(opponent.chesscom_username)}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-ghost whitespace-nowrap px-3 text-[14px]"
-              >
-                <ExternalLink size={16} /> Défier sur Chess.com
-              </a>
-            ) : (
-              <span className="btn-ghost pointer-events-none text-[13px] opacity-60">Pseudo Chess.com manquant</span>
-            )}
+            <ChallengeButton match={match} />
             <button onClick={announce} className="btn-ghost whitespace-nowrap px-3 text-[14px]">
               <Megaphone size={16} /> Annoncer au groupe
             </button>
+            <ChallengeStatus match={match} className="col-span-2" />
+            {opponent?.chesscom_username && (
+              <p className="col-span-2 -mt-1 text-center text-[12px] text-faint">
+                Sur Chess.com, choisissez les <strong className="text-muted">{myColor === 'white' ? 'Blancs' : 'Noirs'}</strong> : sinon
+                la partie ne compte pas.
+              </p>
+            )}
           </div>
         )}
 

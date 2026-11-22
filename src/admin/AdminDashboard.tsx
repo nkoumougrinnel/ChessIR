@@ -221,7 +221,7 @@ export default function AdminDashboard() {
             <Info label="Exempt" value={`${tournament.bye_points} pt${tournament.bye_points > 1 ? 's' : ''}`} />
             <Info
               label="Parties Chess.com"
-              value={`${tournament.chesscom_time_classes.map((c) => TIME_CLASS_LABEL[c]).join(', ')}${tournament.chesscom_rated_only ? ' · classées' : ''}`}
+              value={`${tournament.chesscom_time_classes.map((c) => TIME_CLASS_LABEL[c]).join(', ')}} · classées`}
             />
             <Info label="Fuseau horaire" value={tournament.timezone} />
           </dl>
@@ -394,7 +394,7 @@ function TournamentForm({
   const [name, setName] = useState(initial?.name ?? 'Championnat Chess IR')
   const [bye, setBye] = useState<number | null>(initial?.bye ?? null)
   const [timeClasses, setTimeClasses] = useState<string[]>(initial?.cc.timeClasses ?? ['rapid'])
-  const [ratedOnly, setRatedOnly] = useState(initial?.cc.ratedOnly ?? false)
+  const ratedOnly = true // règle fixe : seules les parties classées comptent
   const [timezone, setTimezone] = useState(initial?.cc.timezone ?? 'Africa/Douala')
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -440,10 +440,9 @@ function TournamentForm({
               </label>
             ))}
           </div>
-          <label className="mt-3 flex items-center gap-2 text-[14px]">
-            <input type="checkbox" className="size-4 accent-[#f5b83d]" checked={ratedOnly} onChange={(e) => setRatedOnly(e.target.checked)} />
-            Parties classées uniquement (sinon les parties amicales comptent aussi)
-          </label>
+          <p className="mt-2 text-[12px] text-faint">
+            Seules les parties classées, avec les couleurs du tirage, sont retenues. Les autres sont des parties amicales.
+          </p>
           <label className="mt-3 block">
             <span className="label">Fuseau horaire (bornes des semaines)</span>
             <select className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)}>

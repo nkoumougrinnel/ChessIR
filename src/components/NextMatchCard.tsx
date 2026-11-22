@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { ExternalLink, PartyPopper, PenLine, Sparkles } from 'lucide-react'
+import { PartyPopper, PenLine, Sparkles } from 'lucide-react'
+import { ChallengeButton, ChallengeStatus } from './challenge'
 import { useChampionship } from '../state/championship'
 import type { MyGame } from './matches'
 import { Avatar, PieceColor } from './ui'
-import { chessComChallenge, dayName, dayShort, ddmm } from '../lib/format'
+import { dayName, dayShort, ddmm } from '../lib/format'
 import { parseDay, toIsoDay } from '../lib/format'
 
 /**
@@ -60,22 +61,18 @@ export function NextMatchCard({ games, weekOpen }: { games: MyGame[]; weekOpen: 
         </p>
       )}
       <div className="relative mt-3.5 grid grid-cols-2 gap-2.5">
-        {opp?.chesscom_username ? (
-          <a
-            href={chessComChallenge(opp.chesscom_username)}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-ghost whitespace-nowrap px-3 py-2.5 text-[14px]"
-          >
-            <ExternalLink size={16} /> Défier
-          </a>
-        ) : (
-          <span className="btn-ghost pointer-events-none px-3 py-2.5 text-[12px] opacity-60">Pas de pseudo Chess.com</span>
-        )}
+        <ChallengeButton match={next.match} className="py-2.5" />
         <Link to={`/matchs/${next.match.id}`} className="btn-gold whitespace-nowrap px-3 py-2.5 text-[14px]">
           <PenLine size={16} /> {found ? 'Confirmer' : 'Déclarer'}
         </Link>
       </div>
+      <ChallengeStatus match={next.match} className="relative mt-2.5" />
+      {opp?.chesscom_username && (
+        <p className="relative mt-2 text-center text-[12px] text-faint">
+          Sur Chess.com, choisissez les <strong className="text-muted">{next.color === 'white' ? 'Blancs' : 'Noirs'}</strong> : sinon la
+          partie ne compte pas.
+        </p>
+      )}
     </section>
   )
 }

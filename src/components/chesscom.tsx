@@ -116,6 +116,8 @@ export function ChesscomMatchBlock({ match, myColor, weekOpen }: { match: Match;
   if (linked) return <LinkedGame game={linked} match={match} myColor={myColor} />
 
   const showSearch = match.status === 'scheduled' && myColor && weekOpen
+  const canAct = match.status === 'scheduled' && !!myColor && weekOpen
+  const others = games.filter((g) => g.id !== certain?.id)
   if (!showSearch && games.length === 0) return null
 
   // Rien trouvé pour l'instant : une seule ligne discrète, pour garder l'écran court.
@@ -175,46 +177,37 @@ export function ChesscomMatchBlock({ match, myColor, weekOpen }: { match: Match;
       {certain && (
         <div className="space-y-3 rounded-xl border border-win/30 bg-win/[0.07] p-3">
           <p className="text-[14px]">
-            Partie trouvée : <strong>{certain.result_for_match ? resultText(certain.result_for_match) : '—'}</strong>
+            Match de championnat trouvé : <strong>{certain.result_for_match ? resultText(certain.result_for_match) : '—'}</strong>
           </p>
           <GameMeta game={certain} />
-          {match.status === 'scheduled' && myColor && weekOpen && (
+          {canAct && (
             <button className="btn-gold w-full text-[16px]" disabled={busy !== null} onClick={() => void accept(certain)}>
               {busy === certain.id ? <Spinner className="text-night-950" /> : <CheckCircle2 size={18} />} Accepter ce résultat
             </button>
           )}
           <p className="text-[12px] text-faint">
-            Votre adversaire devra confirmer. Si ce n'est pas la bonne partie, déclarez le résultat manuellement ci-dessous.
+            Première partie conforme (cadence, classée, couleurs du tirage). Votre adversaire devra confirmer.
           </p>
         </div>
       )}
 
-      {!certain && games.length > 0 && (
+      {others.length > 0 && (
         <div className="space-y-2.5">
-          <p className="flex items-start gap-2 text-[13px] text-warn">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-            {games[0].uncertainty_reason ?? 'Correspondance incertaine'} : choisissez la bonne partie ou déclarez manuellement.
+          <p className="flex items-start gap-2 text-[13px] text-muted">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
+            {certain ? 'Autres parties conformes (revanches) :' : 'Parties conformes : choisissez celle du championnat.'}
           </p>
-          {games.map((g) => {
-            const choosable = g.colors_match && g.time_class_ok && !!g.result_for_match
-            return (
-              <div key={g.id} className="rounded-xl bg-white/[0.03] p-3">
-                <p className="text-[14px]">{g.result_for_match ? resultText(g.result_for_match) : 'Résultat non reconnu'}</p>
-                <GameMeta game={g} />
-                {match.status === 'scheduled' && myColor && weekOpen && (
-                  choosable ? (
-                    <button className="btn-ghost mt-2 w-full py-2 text-[14px]" disabled={busy !== null} onClick={() => void accept(g)}>
-                      {busy === g.id ? <Spinner /> : <CheckCircle2 size={16} />} C'est cette partie
-                    </button>
-                  ) : (
-                    <p className="mt-2 text-[12px] text-faint">
-                      {!g.colors_match ? 'Couleurs inversées : seul l’administrateur peut retenir cette partie.' : 'Cadence non acceptée dans ce championnat.'}
-                    </p>
-                  )
-                )}
-              </div>
-            )
-          })}
+          {others.map((g) => (
+            <div key={g.id} className="rounded-xl bg-white/[0.03] p-3">
+              <p className="text-[14px]">{g.result_for_match ? resultText(g.result_for_match) : 'Résultat non reconnu'}</p>
+              <GameMeta game={g} />
+              {canAct && g.colors_match && g.time_class_ok && !!g.result_for_match && (
+                <button className="btn-ghost mt-2 w-full py-2 text-[14px]" disabled={busy !== null} onClick={() => void accept(g)}>
+                  {busy === g.id ? <Spinner /> : <CheckCircle2 size={16} />} C'est plutôt celle-ci
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

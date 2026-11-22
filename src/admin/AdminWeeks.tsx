@@ -55,7 +55,7 @@ function ActiveWeek({ week }: { week: Week }) {
       const r = await chesscom<{ summary: Record<string, number> }>({ action: 'sync-week', week_id: week.id })
       const s = r.summary ?? {}
       setSyncInfo(
-        `${s.certain ?? 0} partie(s) certaine(s), ${s.uncertain ?? 0} incertaine(s), ${s.none ?? 0} sans partie, ${s.no_username ?? 0} sans pseudo.`,
+        `${s.certain ?? 0} match(s) avec partie trouvée, ${s.none ?? 0} sans partie conforme, ${s.no_username ?? 0} sans pseudo.`,
       )
       await reload()
     } catch (e) {

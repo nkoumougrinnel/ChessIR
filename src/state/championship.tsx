@@ -7,6 +7,7 @@ import type {
   ChesscomGame,
   ChesscomProfile,
   Match,
+  MatchChallenge,
   Participant,
   Profile,
   Round,
@@ -15,6 +16,7 @@ import type {
   Week,
 } from '../lib/types'
 import { useAuth } from './auth'
+import { resyncPush } from '../lib/push'
 
 /**
  * Données du championnat chargées en une fois (une classe = quelques dizaines
@@ -37,6 +39,8 @@ export interface ChampionshipData {
   chesscomGames: ChesscomGame[]
   /** Lien d'invitation du groupe WhatsApp (réglage admin), ou null. */
   whatsappUrl: string | null
+  /** Défis des dernières 24 h (en attente, en direct ou terminés). */
+  challenges: MatchChallenge[]
 }
 
 interface ChampionshipState extends ChampionshipData {
@@ -70,6 +74,7 @@ const empty: ChampionshipData = {
   chesscomProfiles: new Map(),
   chesscomGames: [],
   whatsappUrl: null,
+  challenges: [],
 }
 
 const Ctx = createContext<ChampionshipState | null>(null)
@@ -84,13 +89,14 @@ export function ChampionshipProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     if (!session) return
     try {
-      const [tournament, profiles, achievements, notifications, ccProfiles, settings] = await Promise.all([
+      const [tournament, profiles, achievements, notifications, ccProfiles, settings, challenges] = await Promise.all([
         api.fetchCurrentTournament(),
         api.fetchProfiles(),
         api.fetchAchievements(),
         api.fetchNotifications(),
         api.fetchChesscomProfiles(),
         api.fetchSettings().catch(() => ({}) as Record<string, string | null>),
+        api.fetchRecentChallenges().catch(() => [] as MatchChallenge[]),
       ])
       const base = {
         tournament,
@@ -99,6 +105,7 @@ export function ChampionshipProvider({ children }: { children: ReactNode }) {
         unread: notifications.filter((n) => !n.read_at).length,
         chesscomProfiles: new Map(ccProfiles.map((c) => [c.profile_id, c])),
         whatsappUrl: settings.whatsapp_group_url ?? null,
+        challenges,
       }
       if (!tournament) {
         setData({ ...empty, ...base })
@@ -130,6 +137,7 @@ export function ChampionshipProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true)
     void reload()
+    void resyncPush()
     // Temps réel : toute modification de match, semaine ou notification déclenche un rechargement groupé.
     const schedule = () => {
       window.clearTimeout(timer.current)
@@ -141,6 +149,7 @@ export function ChampionshipProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weeks' }, schedule)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, schedule)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chesscom_games' }, schedule)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_challenges' }, schedule)
       .subscribe()
     const onFocus = () => schedule()
     window.addEventListener('focus', onFocus)

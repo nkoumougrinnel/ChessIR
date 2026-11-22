@@ -5,6 +5,7 @@ import {
   localMidnightToUnix,
   mapApiResult,
   monthsBetween,
+  searchWindowStart,
   type ApiGame,
   type MatchContext,
 } from '../supabase/functions/_shared/chesscom'
@@ -20,7 +21,6 @@ const ctx: MatchContext = {
   windowStart: START,
   windowEnd: END,
   timeClasses: ['rapid'],
-  ratedOnly: false,
 }
 
 let n = 0
@@ -63,8 +63,8 @@ describe('traduction des résultats Chess.com', () => {
   })
 })
 
-describe('détection de la partie d’une confrontation', () => {
-  it('partie unique, bonnes couleurs, bonne cadence → certaine (pseudos insensibles à la casse)', () => {
+describe('détection : règle du championnat', () => {
+  it('partie conforme (rapid, classée, bonnes couleurs, dans la fenêtre) → suggérée', () => {
     const d = detectGames([game()], ctx)
     expect(d.confidence).toBe('certain')
     expect(d.candidates[0].resultForMatch).toBe('white_win')
@@ -75,50 +75,42 @@ describe('détection de la partie d’une confrontation', () => {
     expect(detectGames([game({ b: 'quelquun_dautre' })], ctx).confidence).toBeNull()
   })
 
-  it('hors de la fenêtre de la semaine → ignorée', () => {
+  it('hors de la fenêtre → ignorée', () => {
     expect(detectGames([game({ end_time: START - 60 })], ctx).confidence).toBeNull()
     expect(detectGames([game({ end_time: END + 60 })], ctx).confidence).toBeNull()
   })
 
-  it('jouée un autre jour que le jour prévu, mais dans la semaine → acceptée', () => {
+  it('jouée un autre jour que le jour conseillé, mais dans la fenêtre → acceptée', () => {
     expect(detectGames([game({ end_time: day(6, 22) })], ctx).confidence).toBe('certain')
   })
 
-  it('variante (chess960…) → ignorée', () => {
-    expect(detectGames([game({ rules: 'chess960' })], ctx).confidence).toBeNull()
+  it('parties amicales ignorées : blitz, non classée, couleurs inversées, variante', () => {
+    const amicales = [
+      game({ time_class: 'blitz' }),
+      game({ time_class: 'bullet' }),
+      game({ rated: false }),
+      game({ w: 'ateba_c', b: 'nkoumou_ir', wr: 'win', br: 'checkmated' }),
+      game({ rules: 'chess960' }),
+    ]
+    const d = detectGames(amicales, ctx)
+    expect(d.confidence).toBeNull()
+    expect(d.candidates).toHaveLength(0)
   })
 
-  it('plusieurs parties (revanche) → incertaine', () => {
-    const d = detectGames([game({ end_time: day(1) }), game({ end_time: day(3), w: 'ateba_c', b: 'nkoumou_ir' })], ctx)
-    expect(d.confidence).toBe('uncertain')
-    expect(d.reason).toMatch(/Plusieurs/)
-    expect(d.candidates).toHaveLength(2)
-  })
-
-  it('une partie rapid + une partie blitz → la blitz ne gêne pas la rapid', () => {
+  it('un avant-match en blitz ne gêne pas le match officiel en rapid', () => {
     const d = detectGames([game({ time_class: 'blitz', end_time: day(1) }), game({ end_time: day(2) })], ctx)
     expect(d.confidence).toBe('certain')
-    expect(d.candidates).toHaveLength(2)
+    expect(d.candidates).toHaveLength(1)
+    expect(d.candidates[0].game.time_class).toBe('rapid')
   })
 
-  it('seulement une partie hors cadence → incertaine', () => {
-    const d = detectGames([game({ time_class: 'bullet' })], ctx)
-    expect(d.confidence).toBe('uncertain')
-    expect(d.reason).toMatch(/cadence/)
-  })
-
-  it('couleurs inversées → incertaine, résultat exprimé dans les couleurs du tirage', () => {
-    // Sur Chess.com, ateba a les Blancs et gagne ; dans Chess IR ateba a les Noirs.
-    const d = detectGames([game({ w: 'ateba_c', b: 'nkoumou_ir', wr: 'win', br: 'checkmated' })], ctx)
-    expect(d.confidence).toBe('uncertain')
-    expect(d.reason).toMatch(/inversées/)
-    expect(d.candidates[0].resultForMatch).toBe('black_win')
-    expect(d.candidates[0].colorsMatch).toBe(false)
-  })
-
-  it('partie amicale refusée si « classées uniquement »', () => {
-    expect(detectGames([game({ rated: false })], ctx).confidence).toBe('certain')
-    expect(detectGames([game({ rated: false })], { ...ctx, ratedOnly: true }).confidence).toBeNull()
+  it('plusieurs parties conformes → la première est suggérée, les autres restent au choix', () => {
+    const later = game({ end_time: day(3), wr: 'resigned', br: 'win' })
+    const first = game({ end_time: day(1) })
+    const d = detectGames([later, first], ctx)
+    expect(d.confidence).toBe('certain')
+    expect(d.candidates.map((c) => c.game.url)).toEqual([first.url, later.url])
+    expect(d.reason).toMatch(/première/)
   })
 
   it('partie déjà liée à une autre confrontation → ignorée', () => {
@@ -126,14 +118,24 @@ describe('détection de la partie d’une confrontation', () => {
     expect(detectGames([g], { ...ctx, alreadyLinked: new Set([g.url]) }).confidence).toBeNull()
   })
 
-  it('code de résultat inconnu → incertaine', () => {
-    const d = detectGames([game({ wr: 'bughousepartnerlose', br: 'win' })], ctx)
-    expect(d.confidence).toBe('uncertain')
+  it('code de résultat inconnu → ignorée', () => {
+    expect(detectGames([game({ wr: 'bughousepartnerlose', br: 'win' })], ctx).confidence).toBeNull()
   })
 
   it('doublons (même partie dans les archives des deux joueurs) → comptée une fois', () => {
     const g = game()
-    expect(detectGames([g, { ...g }], ctx).confidence).toBe('certain')
+    expect(detectGames([g, { ...g }], ctx).candidates).toHaveLength(1)
+  })
+
+  it('fenêtre : commence à la publication du tirage, même avant le lundi', () => {
+    // Tirage publié le vendredi 20/11 à 21 h (Douala), semaine du lundi 23/11.
+    const start = searchWindowStart('2026-11-20T20:00:00Z', '2026-11-23', 'Africa/Douala')
+    expect(start).toBe(Date.UTC(2026, 10, 20, 20) / 1000)
+    // Partie du samedi 21/11 → dans la fenêtre.
+    const saturday = Date.UTC(2026, 10, 21, 15) / 1000
+    expect(detectGames([game({ end_time: saturday })], { ...ctx, windowStart: start }).confidence).toBe('certain')
+    // Publication tardive (mardi) : la fenêtre part quand même du lundi.
+    expect(searchWindowStart('2026-11-24T10:00:00Z', '2026-11-23', 'Africa/Douala')).toBe(localMidnightToUnix('2026-11-23', 'Africa/Douala'))
   })
 })
 

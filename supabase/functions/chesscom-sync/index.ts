@@ -20,7 +20,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import {
   detectGames,
   extractRatings,
-  localMidnightToUnix,
+  searchWindowStart,
   monthsBetween,
   USERNAME_RE,
   type ApiGame,
@@ -227,13 +227,13 @@ interface MatchRow {
   black_id: string
   chesscom_game_id: string | null
   chesscom_checked_at: string | null
-  round: { week: { start_date: string; status: string; closed_at: string | null } }
+  round: { week: { start_date: string; published_at: string; status: string; closed_at: string | null } }
 }
 
 async function loadMatch(db: SupabaseClient, matchId: string) {
   const { data } = await db
     .from('matches')
-    .select('id, tournament_id, status, white_id, black_id, chesscom_game_id, chesscom_checked_at, round:rounds!inner(week:weeks!inner(start_date, status, closed_at))')
+    .select('id, tournament_id, status, white_id, black_id, chesscom_game_id, chesscom_checked_at, round:rounds!inner(week:weeks!inner(start_date, published_at, status, closed_at))')
     .eq('id', matchId)
     .single()
   return data as unknown as MatchRow | null
@@ -242,7 +242,7 @@ async function loadMatch(db: SupabaseClient, matchId: string) {
 async function detectMatch(db: SupabaseClient, m: MatchRow) {
   const { data: t } = await db
     .from('tournaments')
-    .select('chesscom_time_classes, chesscom_rated_only, timezone')
+    .select('chesscom_time_classes, timezone')
     .eq('id', m.tournament_id)
     .single()
   const { data: parts } = await db
@@ -261,7 +261,7 @@ async function detectMatch(db: SupabaseClient, m: MatchRow) {
   }
 
   const week = m.round.week
-  const windowStart = localMidnightToUnix(week.start_date, t!.timezone)
+  const windowStart = searchWindowStart(week.published_at, week.start_date, t!.timezone)
   const windowEnd = Math.floor((week.closed_at ? new Date(week.closed_at).getTime() : Date.now()) / 1000)
 
   const games: ApiGame[] = []
@@ -277,7 +277,6 @@ async function detectMatch(db: SupabaseClient, m: MatchRow) {
     windowStart,
     windowEnd,
     timeClasses: t!.chesscom_time_classes,
-    ratedOnly: t!.chesscom_rated_only,
     alreadyLinked: new Set((taken ?? []).map((g) => g.game_url)),
   })
 
@@ -290,7 +289,7 @@ async function detectMatch(db: SupabaseClient, m: MatchRow) {
 
   const rows = detection.candidates
     .filter((c) => c.game.url !== linkedUrl)
-    .map((c) => ({
+    .map((c, i) => ({
       tournament_id: m.tournament_id,
       match_id: m.id,
       game_url: c.game.url,
@@ -308,8 +307,9 @@ async function detectMatch(db: SupabaseClient, m: MatchRow) {
       result_for_match: c.resultForMatch,
       colors_match: c.colorsMatch,
       time_class_ok: c.timeClassOk,
-      confidence: detection.confidence!,
-      uncertainty_reason: detection.reason,
+      // La première partie conforme est suggérée, les suivantes restent au choix.
+      confidence: i === 0 && !linkedUrl ? ('certain' as const) : ('uncertain' as const),
+      uncertainty_reason: i === 0 ? null : 'Autre partie conforme (revanche ?)',
       eco: c.game.eco ?? null,
       accuracies: c.game.accuracies ?? null,
     }))
@@ -330,6 +330,14 @@ async function detectMatch(db: SupabaseClient, m: MatchRow) {
         link: `/matchs/${m.id}`,
       })
     }
+  }
+  // Partie terminée et retrouvée : le match n'est plus « en direct ».
+  if (detection.confidence === 'certain') {
+    await db
+      .from('match_challenges')
+      .update({ ended_at: now, end_reason: 'detected' })
+      .eq('match_id', m.id)
+      .is('ended_at', null)
   }
   return { status: detection.confidence ?? 'none', reason: detection.reason, candidates: detection.candidates.length }
 }

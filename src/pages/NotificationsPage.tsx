@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Award, Bell, CalendarPlus, CheckCircle2, Clock, AlertTriangle, Trophy, Gavel } from 'lucide-react'
+import { Award, Bell, CalendarPlus, CheckCircle2, Clock, AlertTriangle, Trophy, Gavel, Radio, Sparkles, Swords } from 'lucide-react'
 import { fetchNotifications, markNotificationsRead } from '../lib/api'
 import type { Notification } from '../lib/types'
 import { useChampionship } from '../state/championship'
@@ -15,6 +15,9 @@ const ICON = {
   standings_updated: Trophy,
   achievement: Award,
   result_corrected: Gavel,
+  game_detected: Sparkles,
+  challenge: Swords,
+  live: Radio,
 } as Record<string, typeof Bell>
 
 export default function NotificationsPage() {

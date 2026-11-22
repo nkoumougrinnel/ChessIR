@@ -10,6 +10,7 @@ import { Avatar, EmptyState, PageHeader, PageLoader, Stat } from '../components/
 import { chessComProfile } from '../lib/format'
 import { ChesscomStatsCard } from '../components/chesscom'
 import { InstallCard } from '../components/InstallCard'
+import { PushCard, SoundSetting } from '../components/PushCard'
 
 export default function ProfilePage() {
   const { participantId } = useParams()
@@ -162,6 +163,8 @@ export default function ProfilePage() {
 
         {isMine && (
           <div className="space-y-2.5 pt-2">
+            <PushCard placement="settings" />
+            <SoundSetting />
             <InstallCard />
             {myProfile?.role === 'admin' && (
               <Link to="/admin" className="btn-ghost w-full">

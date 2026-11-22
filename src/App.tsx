@@ -18,6 +18,7 @@ import EditProfilePage from './pages/EditProfilePage'
 import AwardsPage from './pages/AwardsPage'
 import NotificationsPage from './pages/NotificationsPage'
 import PlayerHistoryPage from './pages/PlayerHistoryPage'
+import ArenaPage from './pages/ArenaPage'
 
 // Espace admin chargé à la demande : les participants ne téléchargent pas ce code.
 const AdminLayout = lazy(() => import('./admin/AdminLayout'))
@@ -91,6 +92,7 @@ export default function App() {
               <Route index element={<HomePage />} />
               <Route path="matchs" element={<MatchesPage />} />
               <Route path="matchs/:id" element={<MatchDetailPage />} />
+              <Route path="arene" element={<ArenaPage />} />
               <Route path="classement" element={<StandingsPage />} />
               <Route path="profil" element={<ProfilePage />} />
               <Route path="profil/modifier" element={<EditProfilePage />} />

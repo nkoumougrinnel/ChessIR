@@ -75,11 +75,10 @@ export interface MatchContext {
   /** Pseudo Chess.com du joueur qui a les Blancs dans Chess IR. */
   whiteUsername: string
   blackUsername: string
-  /** Fenêtre de la semaine, en secondes Unix. */
+  /** Fenêtre de recherche (publication du tirage → clôture de la semaine), en secondes Unix. */
   windowStart: number
   windowEnd: number
   timeClasses: string[]
-  ratedOnly: boolean
   /** URLs de parties déjà liées à une autre confrontation. */
   alreadyLinked?: Set<string>
 }
@@ -88,15 +87,16 @@ export type Confidence = 'certain' | 'uncertain'
 
 export interface Candidate {
   game: ApiGame
-  /** Résultat exprimé dans les couleurs de la confrontation Chess IR (null si code inconnu). */
+  /** Résultat exprimé dans les couleurs de la confrontation Chess IR. */
   resultForMatch: MatchResult | null
   colorsMatch: boolean
   timeClassOk: boolean
 }
 
 export interface Detection {
+  /** Parties conformes, de la plus ancienne à la plus récente. La première est la partie suggérée. */
   candidates: Candidate[]
-  confidence: Confidence | null // null = aucune partie
+  confidence: Confidence | null // null = aucune partie conforme
   reason: string | null
 }
 
@@ -111,12 +111,17 @@ export function resultForMatch(game: ApiGame, ctx: Pick<MatchContext, 'whiteUser
 }
 
 /**
- * Recherche, parmi des parties Chess.com, celles qui correspondent à une confrontation.
+ * Règle du championnat : une partie Chess.com est un match de championnat si elle
+ * réunit TOUTES les conditions :
+ *   - les deux joueurs du tirage, avec les couleurs du tirage ;
+ *   - échecs standard, partie classée, dans une cadence acceptée ;
+ *   - terminée après la publication du tirage et avant la clôture de la semaine ;
+ *   - résultat reconnu, et pas déjà retenue pour une autre confrontation.
+ * Toute autre partie (blitz, non classée, couleurs inversées…) est une partie
+ * amicale : elle est ignorée.
  *
- * Candidate = bons adversaires, échecs standard, dans la fenêtre, classée si exigé,
- * non liée à un autre match. La cadence est vérifiée à part : une partie hors cadence
- * reste listée (pour l'admin) mais rend la correspondance incertaine.
- * Certaine = exactement une candidate, bonne cadence, bonnes couleurs, résultat connu.
+ * La PREMIÈRE partie conforme est suggérée (« certain »). Les suivantes (revanches
+ * conformes) restent proposées au choix. Rien n'est jamais validé sans les joueurs.
  */
 export function detectGames(games: ApiGame[], ctx: MatchContext): Detection {
   const w = lc(ctx.whiteUsername)
@@ -126,30 +131,28 @@ export function detectGames(games: ApiGame[], ctx: MatchContext): Detection {
   for (const g of games) {
     if (seen.has(g.url)) continue
     seen.add(g.url)
-    const gw = lc(g.white.username)
-    const gb = lc(g.black.username)
-    const players = (gw === w && gb === b) || (gw === b && gb === w)
-    if (!players || g.rules !== 'chess') continue
+    if (lc(g.white.username) !== w || lc(g.black.username) !== b) continue
+    if (g.rules !== 'chess' || g.rated !== true) continue
+    if (!ctx.timeClasses.includes(g.time_class)) continue
     if (g.end_time < ctx.windowStart || g.end_time > ctx.windowEnd) continue
-    if (ctx.ratedOnly && !g.rated) continue
     if (ctx.alreadyLinked?.has(g.url)) continue
-    candidates.push({
-      game: g,
-      resultForMatch: resultForMatch(g, ctx),
-      colorsMatch: gw === w,
-      timeClassOk: ctx.timeClasses.includes(g.time_class),
-    })
+    const result = resultForMatch(g, ctx)
+    if (!result) continue
+    candidates.push({ game: g, resultForMatch: result, colorsMatch: true, timeClassOk: true })
   }
   candidates.sort((x, y) => x.game.end_time - y.game.end_time)
 
   if (candidates.length === 0) return { candidates, confidence: null, reason: null }
-  const eligible = candidates.filter((c) => c.timeClassOk)
-  if (eligible.length > 1) return { candidates, confidence: 'uncertain', reason: 'Plusieurs parties trouvées entre les deux joueurs' }
-  if (eligible.length === 0) return { candidates, confidence: 'uncertain', reason: 'Partie trouvée hors des cadences acceptées' }
-  const only = eligible[0]
-  if (!only.colorsMatch) return { candidates, confidence: 'uncertain', reason: 'Couleurs inversées par rapport au tirage' }
-  if (!only.resultForMatch) return { candidates, confidence: 'uncertain', reason: 'Résultat Chess.com non reconnu' }
-  return { candidates, confidence: 'certain', reason: null }
+  return {
+    candidates,
+    confidence: 'certain',
+    reason: candidates.length > 1 ? `${candidates.length} parties conformes : la première est suggérée` : null,
+  }
+}
+
+/** Début de la fenêtre de recherche : publication du tirage (ou le lundi, si c'est plus tôt). */
+export function searchWindowStart(publishedAt: string, weekStartDate: string, timeZone: string): number {
+  return Math.min(Math.floor(new Date(publishedAt).getTime() / 1000), localMidnightToUnix(weekStartDate, timeZone))
 }
 
 /* ------------------------------------------------------------------ */

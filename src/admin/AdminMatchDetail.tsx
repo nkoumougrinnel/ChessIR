@@ -153,7 +153,7 @@ export default function AdminMatchDetail() {
                       ⚪ {g.white_username} · ⚫ {g.black_username}
                     </span>
                     <span className={g.confidence === 'certain' ? 'text-win' : 'text-warn'}>
-                      {g.confidence === 'certain' ? 'certaine' : g.uncertainty_reason ?? 'incertaine'}
+                      {g.confidence === 'certain' ? 'suggérée' : g.uncertainty_reason ?? 'autre partie conforme'}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
