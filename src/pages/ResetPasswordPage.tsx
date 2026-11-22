@@ -42,11 +42,15 @@ export function ForgotPasswordForm({ initialEmail = '', onBack }: { initialEmail
       <div className="space-y-3 text-center">
         <MailCheck size={40} className="mx-auto text-win" />
         <p className="text-[15px]">
-          Si un compte existe pour <strong>{email.trim()}</strong>, un e-mail vient de partir.
+          Demande envoyée pour <strong>{email.trim()}</strong>.
         </p>
+        <div className="rounded-xl border border-warn/30 bg-warn/10 px-3 py-2.5 text-left text-[13px] text-warn">
+          Vérifiez que c'est bien l'adresse de votre compte Chess IR, celle avec laquelle vous vous êtes inscrit. Pour une autre
+          adresse, aucun e-mail ne part.
+        </div>
         <p className="text-[13px] text-muted">
-          Ouvrez-le sur ce téléphone et touchez le lien : vous choisirez votre nouveau mot de passe. Pensez à regarder dans les
-          spams.
+          Ouvrez l'e-mail sur ce téléphone et touchez le lien : vous choisirez votre nouveau mot de passe. Il peut mettre quelques
+          minutes à arriver ; pensez à regarder dans les spams.
         </p>
         {onBack && (
           <button type="button" className="btn-ghost w-full" onClick={onBack}>
