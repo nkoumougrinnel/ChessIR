@@ -6,11 +6,13 @@ import { ErrorBox, Segmented, Spinner } from '../components/ui'
 import { Eye, EyeOff } from 'lucide-react'
 import { Brand } from '../components/Layout'
 import logo from '../assets/logo.png'
+import { ForgotPasswordForm } from './ResetPasswordPage'
 
 export default function AuthPage() {
   const { session, loading } = useAuth()
   const location = useLocation()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [forgot, setForgot] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -76,6 +78,12 @@ export default function AuthPage() {
         <p className="mt-4 text-[15px] tracking-wide text-muted">Jouer. Progresser. Grimper.</p>
       </div>
 
+      {forgot ? (
+        <div className="relative animate-rise">
+          <h2 className="mb-3 text-center font-display text-[20px] font-semibold">Mot de passe oublié</h2>
+          <ForgotPasswordForm initialEmail={email} onBack={() => setForgot(false)} />
+        </div>
+      ) : (
       <div className="relative animate-rise [animation-delay:80ms]">
         <Segmented
           value={mode}
@@ -162,6 +170,18 @@ export default function AuthPage() {
               </button>
             </div>
             {mode === 'signup' && <p className="mt-1 text-[12px] text-faint">6 caractères minimum.</p>}
+            {mode === 'login' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setForgot(true)
+                }}
+                className="mt-1.5 text-[13px] text-gold-300 hover:underline"
+              >
+                Mot de passe oublié ?
+              </button>
+            )}
           </div>
 
           <ErrorBox>{error}</ErrorBox>
@@ -179,6 +199,7 @@ export default function AuthPage() {
           </p>
         )}
       </div>
+      )}
     </div>
   )
 }

@@ -1,11 +1,11 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './state/auth'
 import { ChampionshipProvider, useChampionship } from './state/championship'
 import { hideSplash } from './lib/splash'
 import { UpdateBanner } from './components/UpdateBanner'
 import { ShareProvider } from './components/ShareSheet'
-import { isConfigured } from './lib/supabase'
+import { authLink, isConfigured, supabase } from './lib/supabase'
 import Layout from './components/Layout'
 import { PageLoader } from './components/ui'
 import AuthPage from './pages/AuthPage'
@@ -19,6 +19,7 @@ import AwardsPage from './pages/AwardsPage'
 import NotificationsPage from './pages/NotificationsPage'
 import PlayerHistoryPage from './pages/PlayerHistoryPage'
 import ArenaPage from './pages/ArenaPage'
+import ResetPasswordPage, { RESET_PATH } from './pages/ResetPasswordPage'
 
 // Espace admin chargé à la demande : les participants ne téléchargent pas ce code.
 const AdminLayout = lazy(() => import('./admin/AdminLayout'))
@@ -37,6 +38,24 @@ function SplashGate() {
   useEffect(() => {
     if (!authLoading && (!session || !loading)) hideSplash()
   }, [authLoading, session, loading])
+  return null
+}
+
+/**
+ * Lien de réinitialisation arrivé ailleurs que sur la bonne page (ex. « Site URL » de
+ * Supabase) : on emmène quand même l'utilisateur choisir son nouveau mot de passe.
+ */
+function RecoveryRedirect() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    if (authLink.recovery && location.pathname !== RESET_PATH) navigate(RESET_PATH, { replace: true })
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') navigate(RESET_PATH, { replace: true })
+    })
+    return () => data.subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   return null
 }
 
@@ -79,9 +98,11 @@ export default function App() {
         <ChampionshipProvider>
           <ShareProvider>
           <SplashGate />
+          <RecoveryRedirect />
           <UpdateBanner />
           <Routes>
             <Route path="/connexion" element={<AuthPage />} />
+            <Route path={RESET_PATH} element={<ResetPasswordPage />} />
             <Route
               element={
                 <RequireAuth>
