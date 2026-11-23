@@ -421,3 +421,6 @@ verify_jwt = false
 
 [functions.push-send]
 verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false

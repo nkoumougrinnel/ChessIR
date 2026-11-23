@@ -259,6 +259,17 @@ export async function chesscom<T = Record<string, unknown>>(body: Record<string,
   return data as T
 }
 
+/** Mot de passe provisoire pour un joueur (Edge Function `admin-users`, admin uniquement). */
+export async function giveTempPassword(profileId: string): Promise<{ password: string; display_name: string }> {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body: { action: 'temp-password', profile_id: profileId } })
+  if (error) {
+    const ctx = (error as { context?: Response }).context
+    const payload = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null
+    throw new Error(payload?.error ?? 'Service indisponible, réessayez plus tard.')
+  }
+  return data
+}
+
 /* ------------------------------ Défis ------------------------------- */
 
 /** Défis des dernières 24 h (ouverts ou terminés) : l'état exact se déduit des horodatages. */

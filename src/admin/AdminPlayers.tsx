@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { BadgeCheck, BarChart3, Pencil, Plus, UserPlus, RefreshCw, Search, UserCheck, UserMinus, X, XCircle } from 'lucide-react'
+import { BadgeCheck, BarChart3, Check, Copy, KeyRound, Pencil, Plus, UserPlus, RefreshCw, Search, UserCheck, UserMinus, X, XCircle } from 'lucide-react'
 import { useChampionship } from '../state/championship'
-import { admin, chesscom } from '../lib/api'
+import { admin, chesscom, giveTempPassword } from '../lib/api'
 import type { Participant, Profile } from '../lib/types'
 import { Avatar, ErrorBox, PageLoader, Spinner, cx } from '../components/ui'
 import { friendlyError } from '../lib/supabase'
@@ -292,7 +292,86 @@ function EditPlayer({
         <button className="btn-gold w-full" disabled={busy} onClick={save}>
           {busy ? <Spinner className="text-night-950" /> : 'Enregistrer'}
         </button>
+        {profile.role !== 'admin' && <TempPassword profile={profile} />}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Mot de passe oublié : l'admin donne un mot de passe provisoire, affiché une seule fois,
+ * avec un message prêt à envoyer au joueur en privé.
+ */
+function TempPassword({ profile }: { profile: Profile }) {
+  const [step, setStep] = useState<'idle' | 'confirm' | 'busy' | 'done'>('idle')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const message = `Ton mot de passe Chess IR provisoire : ${password}\nConnecte-toi sur https://chessir.vercel.app avec ton e-mail habituel, puis change-le dans Profil › Changer mon mot de passe.`
+
+  async function generate() {
+    setStep('busy')
+    setError(null)
+    try {
+      setPassword((await giveTempPassword(profile.id)).password)
+      setStep('done')
+    } catch (e) {
+      setError((e as Error).message)
+      setStep('idle')
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(message)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 border-t border-white/[0.08] pt-4">
+      <p className="flex items-center gap-2 text-[14px] font-medium">
+        <KeyRound size={16} className="text-gold-400" /> Mot de passe oublié ?
+      </p>
+      {step === 'idle' && (
+        <button className="btn-ghost mt-2 w-full text-[14px]" onClick={() => setStep('confirm')}>
+          Donner un mot de passe provisoire
+        </button>
+      )}
+      {step === 'confirm' && (
+        <div className="mt-2 space-y-2 rounded-xl bg-warn/10 px-3 py-3 text-[13px] text-warn">
+          <p>L'ancien mot de passe de {profile.display_name} ne fonctionnera plus. Continuer ?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button className="btn-ghost py-2 text-[13px]" onClick={() => setStep('idle')}>
+              Annuler
+            </button>
+            <button className="btn-gold py-2 text-[13px]" onClick={() => void generate()}>
+              Oui, générer
+            </button>
+          </div>
+        </div>
+      )}
+      {step === 'busy' && (
+        <div className="mt-3 grid place-items-center">
+          <Spinner />
+        </div>
+      )}
+      {step === 'done' && (
+        <div className="mt-2 space-y-2">
+          <p className="rounded-xl bg-white/[0.05] px-3 py-3 text-center font-mono text-[20px] font-semibold tracking-wide text-gold-200 select-all">
+            {password}
+          </p>
+          <p className="text-[12px] text-faint">
+            Affiché une seule fois. Envoyez-le à {profile.display_name} en message privé, jamais dans le groupe.
+          </p>
+          <button className="btn-gold w-full text-[14px]" onClick={() => void copy()}>
+            {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Message copié' : 'Copier le message pour le joueur'}
+          </button>
+        </div>
+      )}
+      {error && <p className="mt-2 text-[13px] text-loss">{error}</p>}
     </div>
   )
 }

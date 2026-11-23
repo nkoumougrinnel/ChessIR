@@ -38,8 +38,9 @@ export function friendlyError(message: string): string {
   if (/display_name_check/.test(message)) return 'Le nom doit contenir entre 2 et 40 caractères.'
   if (/declared_elo_check/.test(message)) return 'Elo invalide (entre 0 et 3500).'
   if (/Failed to fetch/i.test(message)) return 'Connexion impossible. Vérifiez votre réseau.'
-  if (/only request this after|rate limit/i.test(message))
-    return 'Trop de demandes rapprochées : patientez une minute avant de redemander un lien.'
+  if (/email rate limit/i.test(message))
+    return "Le service d'envoi d'e-mails est momentanément saturé. Réessayez plus tard ou prévenez l'administrateur."
+  if (/only request this after|rate limit/i.test(message)) return 'Trop de tentatives rapprochées : patientez une minute puis réessayez.'
   if (/should be different from the old/i.test(message)) return "Choisissez un mot de passe différent de l'ancien."
   if (/Auth session missing|session.*expired/i.test(message))
     return 'Lien expiré ou déjà utilisé : demandez un nouveau lien de réinitialisation.'

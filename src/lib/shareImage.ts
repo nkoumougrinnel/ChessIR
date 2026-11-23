@@ -245,12 +245,25 @@ export function renderMatchCard(o: {
   black: SharePlayer
   when: string
   result?: 'white_win' | 'black_win' | 'draw' | null
+  /** Match en cours sur Chess.com (partage depuis l'Arène). */
+  live?: boolean
   url: string
 }) {
   return render((ctx, logo) => {
     header(ctx, logo, o.kicker)
     card(ctx, 72, 250, W - 144, 700, true)
-    text(ctx, o.when, W / 2, 335, { size: 36, weight: 600, color: C.muted, align: 'center', maxWidth: W - 220 })
+    if (o.live) {
+      // Pastille « EN DIRECT » au-dessus de la date.
+      roundRect(ctx, W / 2 - 150, 214, 300, 72, 36)
+      ctx.fillStyle = C.loss
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(W / 2 - 100, 250, 12, 0, Math.PI * 2)
+      ctx.fillStyle = '#ffffff'
+      ctx.fill()
+      text(ctx, 'EN DIRECT', W / 2 + 18, 263, { size: 38, weight: 700, color: '#ffffff', align: 'center' })
+    }
+    text(ctx, o.when, W / 2, 345, { size: 36, weight: 600, color: C.muted, align: 'center', maxWidth: W - 220 })
 
     const side = (p: SharePlayer, color: 'white' | 'black', cx: number, won: boolean | null) => {
       avatar(ctx, p.name, p.color, cx, 520, 112, won === true)
@@ -271,6 +284,8 @@ export function renderMatchCard(o: {
       ctx.fillStyle = r === 'draw' ? 'rgba(122,162,255,0.16)' : 'rgba(52,211,153,0.16)'
       ctx.fill()
       text(ctx, label, W / 2, 907, { size: 36, weight: 700, color, align: 'center', maxWidth: W - 340 })
+    } else if (o.live) {
+      text(ctx, 'La partie se joue maintenant : venez regarder !', W / 2, 905, { size: 34, weight: 600, color: C.loss, align: 'center', maxWidth: W - 220 })
     } else {
       text(ctx, 'La partie commence sur Chess.com !', W / 2, 905, { size: 34, weight: 600, color: C.goldLight, align: 'center' })
     }

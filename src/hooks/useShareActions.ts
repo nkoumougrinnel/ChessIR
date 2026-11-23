@@ -46,6 +46,34 @@ export function useShareActions() {
       })
     },
 
+    /** Match en direct (Arène) : tout participant peut le partager au groupe. */
+    live(m: Match) {
+      const round = roundById.get(m.round_id)!
+      const week = weekById.get(round.week_id)!
+      const white = player(m.white_id)
+      const black = player(m.black_id)
+      const watch = [white, black]
+        .filter((p) => p.chesscom)
+        .map((p) => `• ${p.name} : https://www.chess.com/member/${p.chesscom}`)
+      share({
+        title: 'Partager le direct',
+        text:
+          `🔴 EN DIRECT : ${white.name} (Blancs) affronte ${black.name} (Noirs) — ${weekLabel(week.number)}, ronde ${round.number}.` +
+          (watch.length ? `\nRegardez la partie sur Chess.com :\n${watch.join('\n')}` : '') +
+          `\nToutes les parties en cours sont dans l'Arène 🔥`,
+        filename: 'chessir-direct.png',
+        build: () =>
+          renderMatchCard({
+            kicker: 'Arène',
+            white,
+            black,
+            when: `${weekLabel(week.number)} · Ronde ${round.number}`,
+            live: true,
+            url: appUrl(),
+          }),
+      })
+    },
+
     /** Classement général ou de la semaine (10 premiers). */
     standings(rows: StandingRow[], opts: { week?: Week; myId?: string }) {
       const title = opts.week ? `Classement · ${weekLabel(opts.week.number)}` : 'Classement général'

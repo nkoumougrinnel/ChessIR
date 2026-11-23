@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Crown, ExternalLink, Eye, Flame, Swords, Trophy } from 'lucide-react'
+import { Crown, ExternalLink, Eye, Flame, Megaphone, Swords, Trophy } from 'lucide-react'
+import { useShareActions } from '../hooks/useShareActions'
 import { useChampionship } from '../state/championship'
 import { challengeState, ChallengeButton, countdown, liveSince, LiveDot, useNow } from '../components/challenge'
 import { Avatar, EmptyState, PageHeader, PageLoader, PieceColor, cx } from '../components/ui'
@@ -154,6 +155,7 @@ function WatchButton({ participantId }: { participantId: string }) {
 
 function LiveCard({ challenge, match, now, index }: { challenge: MatchChallenge; match: Match; now: number; index: number }) {
   const { me, roundById } = useChampionship()
+  const shareActions = useShareActions()
   const mine = !!me && (match.white_id === me.id || match.black_id === me.id)
   return (
     <article
@@ -199,6 +201,12 @@ function LiveCard({ challenge, match, now, index }: { challenge: MatchChallenge;
             </div>
           </>
         )}
+        <button
+          onClick={() => shareActions.live(match)}
+          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-loss/30 bg-loss/10 px-3 py-2.5 text-[14px] font-medium text-ink hover:bg-loss/15"
+        >
+          <Megaphone size={16} className="text-loss" /> Partager le direct au groupe
+        </button>
       </div>
     </article>
   )

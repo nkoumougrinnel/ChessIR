@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Eye, EyeOff, KeyRound, MailCheck } from 'lucide-react'
 import { authLink, friendlyError, supabase } from '../lib/supabase'
 import { useAuth } from '../state/auth'
@@ -199,9 +199,9 @@ export default function ResetPasswordPage() {
         <button type="submit" className="btn-gold w-full" disabled={busy}>
           {busy ? <Spinner className="text-night-950" /> : 'Enregistrer le mot de passe'}
         </button>
-        <Link to="/" className="block py-2 text-center text-[14px] text-muted hover:text-ink">
+        <button type="button" onClick={() => navigate(-1)} className="block w-full py-2 text-center text-[14px] text-muted hover:text-ink">
           Annuler
-        </Link>
+        </button>
       </form>
     )
   }
@@ -215,7 +215,7 @@ export default function ResetPasswordPage() {
       <div className="relative mb-6 flex flex-col items-center text-center animate-rise">
         <img src={logo} alt="" width={72} height={72} className="mb-4 rounded-[26%]" />
         <h1 className="flex items-center gap-2 font-display text-[24px] font-bold">
-          <KeyRound size={22} className="text-gold-400" /> Nouveau mot de passe
+          <KeyRound size={22} className="text-gold-400" /> {session && !authLink.recovery ? 'Changer mon mot de passe' : 'Nouveau mot de passe'}
         </h1>
       </div>
       <div className="relative animate-rise [animation-delay:80ms]">{content}</div>

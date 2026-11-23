@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { BadgeCheck, ChevronRight, ExternalLink, History, LogOut, Pencil, Shield, UserX } from 'lucide-react'
+import { BadgeCheck, ChevronRight, ExternalLink, History, KeyRound, LogOut, Pencil, Shield, UserX } from 'lucide-react'
 import { useAuth } from '../state/auth'
 import { useChampionship } from '../state/championship'
 import { HistoryRow, useGamesOf } from '../components/matches'
@@ -165,6 +165,11 @@ export default function ProfilePage() {
           <div className="space-y-2.5 pt-2">
             <PushCard placement="settings" />
             <SoundSetting />
+            <Link to="/nouveau-mot-de-passe" className="card flex items-center gap-3 px-4 py-3.5">
+              <KeyRound size={20} className="text-gold-400" />
+              <span className="flex-1 text-[15px] font-medium">Changer mon mot de passe</span>
+              <ChevronRight size={18} className="text-faint" />
+            </Link>
             <InstallCard />
             {myProfile?.role === 'admin' && (
               <Link to="/admin" className="btn-ghost w-full">
